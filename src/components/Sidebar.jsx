@@ -3,18 +3,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { useAuth } from "../Context/AuthContext.jsx"
-import {
-  Calendar,
-  ClipboardCheck,
-  UserCheck,
-  Package,
-  Scissors,
-  ChevronDown,
-  ChevronUp,
-  Database,
-  History,
-  DollarSign,
-} from "lucide-react" // Make sure to import the new icons
+import { Calendar, ClipboardCheck, UserCheck, Package, Scissors, ChevronDown, ChevronUp, Database, History, DollarSign, Users, Tag, Home } from 'lucide-react'
 
 const Sidebar = ({
   activeTab,
@@ -58,8 +47,9 @@ const Sidebar = ({
     }
   }
 
-  // Define menu items
+  // Define menu items - FIXED ID FOR DASHBOARD
   const menuItems = [
+    { id: "dashboardHome", label: "Dashboard", icon: <Home size={20} /> },
     { id: "booking", label: "Booking", icon: <Calendar size={20} /> },
     { id: "dailyEntry", label: "Daily Entry", icon: <ClipboardCheck size={20} /> },
     // Staff section with submenu
@@ -77,7 +67,9 @@ const Sidebar = ({
     },
     { id: "inventory", label: "Inventory", icon: <Package size={20} /> },
     { id: "services", label: "Services", icon: <Scissors size={20} />, adminOnly: true },
-    { id: "paymentCommission", label: "Payment+Commission", icon: <DollarSign size={20} />, adminOnly: true },
+    { id: "paymentCommission", label: "Payment+Commission", icon: <DollarSign size={20} /> },
+    { id: "customerDb", label: "Customers", icon: <Users size={20} />, adminOnly: true },
+    { id: "promoCard", label: "Promo Cards", icon: <Tag size={20} />, adminOnly: true },
   ]
 
   return (
@@ -171,4 +163,3 @@ const Sidebar = ({
 }
 
 export default Sidebar
-

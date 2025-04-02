@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Calendar, IndianRupee, TrendingUp, BarChart2, CreditCard, Scissors, History, X, Search, Edit, Save, CheckCircle2, AlertCircle } from "lucide-react"
+import { Calendar, IndianRupee, TrendingUp, BarChart2, CreditCard, Scissors, History, X, Search, Edit, Save, CheckCircle2, AlertCircle, Plus } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useAuth } from "./Context/AuthContext" // Import useAuth hook
 
@@ -25,11 +25,19 @@ const DailyEntry = ({ hideHistoryButton = false }) => {
     cardPayments: 0,
     averageSale: 0
   })
+
+  const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const [promoCards, setPromoCards] = useState([]);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [loadingPromos, setLoadingPromos] = useState(false);
+  const [discountAmount, setDiscountAmount] = useState(0);
   
   // Add state for edit functionality
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [serviceOptions, setServiceOptions] = useState([])
+  const [extraServices, setExtraServices] = useState([])
   const [notification, setNotification] = useState({
     show: false,
     message: "",
@@ -45,6 +53,51 @@ const DailyEntry = ({ hideHistoryButton = false }) => {
 
 // Modify the useEffect block where you fetch and process data
 // Find this section in your code and replace it
+
+// Enhanced useEffect for fetching service data with better debugging
+// Add this near the top of your component, after all your useState declarations
+useEffect(() => {
+  const fetchExtraServices = async () => {
+    try {
+      console.log("Fetching extra services...")
+      
+      // Create URL to fetch the Service DB sheet
+      const serviceDBSheetName = 'Service DB'
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(serviceDBSheetName)}`
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch service data: ${response.status}`)
+      }
+      
+      // Extract the JSON part from the response
+      const text = await response.text()
+      const jsonStart = text.indexOf('{')
+      const jsonEnd = text.lastIndexOf('}')
+      const jsonString = text.substring(jsonStart, jsonEnd + 1)
+      const data = JSON.parse(jsonString)
+      
+      // Process the rows to extract service info
+      if (data.table && data.table.rows) {
+        const services = data.table.rows
+          .filter(row => row.c && row.c[2] && row.c[4]) // Ensure both name and price exist
+          .map(row => {
+            const name = row.c[2].v
+            const price = parseFloat(row.c[4].v)
+            return { name, price }
+          })
+          .filter(service => service.name && !isNaN(service.price))
+        
+        console.log("Loaded extra services:", services)
+        setExtraServices(services)
+      }
+    } catch (error) {
+      console.error("Error fetching extra services:", error)
+    }
+  }
+  
+  fetchExtraServices()
+}, [sheetId]) // Only run when sheetId changes
 
 useEffect(() => {
   const fetchGoogleSheetData = async () => {
@@ -113,6 +166,25 @@ useEffect(() => {
             if (!cell) {
               rowData[header.id] = ''
               return
+            }
+            
+            // Special handling for discount column
+            if (header.label.toLowerCase().includes('discount')) {
+              const value = cell.v !== undefined && cell.v !== null ? cell.v : ''
+              
+              // Convert decimal to percentage if it's between 0 and 1
+              if (!isNaN(parseFloat(value)) && parseFloat(value) >= 0 && parseFloat(value) <= 1) {
+                rowData[header.id] = `${(parseFloat(value) * 100).toFixed(0)}%`
+              } else {
+                rowData[header.id] = value
+              }
+              
+              // If there's a formatted value, store it
+              if (cell.f) {
+                rowData[`${header.id}_formatted`] = cell.f
+              }
+              
+              return // Skip the rest of the processing for this column
             }
             
             // Get the value, with fallbacks
@@ -335,272 +407,516 @@ useEffect(() => {
     : transactions
 
   // Handle Edit Click - IMPROVED to preserve original date formats
-  const handleEditClick = (transaction) => {
-    console.log("Editing transaction with original values:", transaction)
+  // Modified handleEditClick function to filter fields for staff users
+const handleEditClick = (transaction) => {
+  console.log("Editing transaction with original values:", transaction)
+  
+  // Create a deep copy to avoid modifying the original transaction
+  const transactionCopy = JSON.parse(JSON.stringify(transaction))
+  
+  // Special handling for timestamp field - set current date if empty
+  const timestampHeader = tableHeaders.find(header => 
+    header.label.toLowerCase().includes('timestamp') || 
+    header.label.toLowerCase().includes('time stamp')
+  )
+  
+  if (timestampHeader && !transactionCopy[timestampHeader.id]) {
+    const today = new Date()
+    const day = today.getDate().toString().padStart(2, '0')
+    const month = (today.getMonth() + 1).toString().padStart(2, '0')
+    const year = today.getFullYear()
     
-    // Create a deep copy to avoid modifying the original transaction
-    const transactionCopy = JSON.parse(JSON.stringify(transaction))
-    
-    // Special handling for timestamp field - set current date if empty
-    const timestampHeader = tableHeaders.find(header => 
-      header.label.toLowerCase().includes('timestamp') || 
-      header.label.toLowerCase().includes('time stamp')
-    )
-    
-    if (timestampHeader && !transactionCopy[timestampHeader.id]) {
-      const today = new Date()
-      const day = today.getDate().toString().padStart(2, '0')
-      const month = (today.getMonth() + 1).toString().padStart(2, '0')
-      const year = today.getFullYear()
+    // Format date as DD/MM/YYYY to match the expected format
+    transactionCopy[timestampHeader.id] = `${day}/${month}/${year}`
+  }
+  
+  // Keep the original Google Sheets date format in a special property
+  // This will be used when submitting the form
+  tableHeaders.forEach(header => {
+    if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
+      // Store the original date value for submission
+      transactionCopy[`${header.id}_original`] = transactionCopy[header.id]
       
-      // Format date as DD/MM/YYYY to match the expected format
-      transactionCopy[timestampHeader.id] = `${day}/${month}/${year}`
+      // Convert the date for display in the form fields
+      if (transactionCopy[header.id]) {
+        // For Google Sheets date format: Date(year,month,day)
+        if (typeof transactionCopy[header.id] === 'string' && 
+            transactionCopy[header.id].startsWith('Date(')) {
+          const match = /Date\((\d+),(\d+),(\d+)\)/.exec(transactionCopy[header.id])
+          if (match) {
+            const year = parseInt(match[1], 10)
+            const month = parseInt(match[2], 10) + 1 // Convert from 0-indexed to 1-indexed month
+            const day = parseInt(match[3], 10)
+            
+            // Format as DD/MM/YYYY for display
+            transactionCopy[`${header.id}_display`] = `${day}/${month}/${year}`
+            
+            // If this field is for a form input, also prepare the YYYY-MM-DD format
+            if (header.label.toLowerCase().includes('date') && 
+                !header.label.toLowerCase().includes('timestamp')) {
+              // For date input field, format as YYYY-MM-DD
+              transactionCopy[header.id] = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+            }
+          }
+        }
+      }
+    }
+  })
+  
+  console.log("Prepared transaction for editing:", transactionCopy)
+  setEditingTransaction(transactionCopy)
+  setShowEditForm(true)
+}
+
+
+const fetchPromoCards = async () => {
+  try {
+    setLoadingPromos(true);
+    
+    // Use the same sheetId but different sheet name for promos
+    const promoSheetName = 'Promo Cards';
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(promoSheetName)}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch promo data: ${response.status}`);
     }
     
-    // Keep the original Google Sheets date format in a special property
-    // This will be used when submitting the form
-    tableHeaders.forEach(header => {
-      if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
-        // Store the original date value for submission
-        transactionCopy[`${header.id}_original`] = transactionCopy[header.id]
+    const text = await response.text();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    const jsonString = text.substring(jsonStart, jsonEnd + 1);
+    const data = JSON.parse(jsonString);
+    
+    if (!data.table || !data.table.rows) {
+      console.log("No promo data found");
+      setPromoCards([]);
+      setLoadingPromos(false);
+      return;
+    }
+    
+    // Extract headers from cols
+    const headers = data.table.cols.map((col, index) => ({
+      id: `col${index}`,
+      label: col.label || col.id,
+      type: col.type
+    })).filter(header => header.label);
+    
+    // Find relevant column indices
+    const codeColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('code'));
+    const discountColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('discount'));
+    const descriptionColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('description'));
+    const deletedColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('delete'));
+    
+    // Process rows
+    const promos = data.table.rows
+      .filter(row => {
+        // Skip deleted promos
+        const isDeleted = deletedColumnIndex !== -1 && 
+                         row.c && 
+                         row.c.length > deletedColumnIndex && 
+                         row.c[deletedColumnIndex] && 
+                         row.c[deletedColumnIndex].v === "Yes";
+        return !isDeleted && row.c && row.c.some(cell => cell && cell.v);
+      })
+      .map(row => {
+        // Basic info for each promo card
+        const promoData = {
+          id: Math.random().toString(36).substring(2, 15),
+          code: row.c[codeColumnIndex]?.v || 'Unknown',
+          discount: parseFloat(row.c[discountColumnIndex]?.v) || 0,
+          description: row.c[descriptionColumnIndex]?.v || ''
+        };
         
-        // Convert the date for display in the form fields
-        if (transactionCopy[header.id]) {
-          // For Google Sheets date format: Date(year,month,day)
-          if (typeof transactionCopy[header.id] === 'string' && 
-              transactionCopy[header.id].startsWith('Date(')) {
-            const match = /Date\((\d+),(\d+),(\d+)\)/.exec(transactionCopy[header.id])
-            if (match) {
-              const year = parseInt(match[1], 10)
-              const month = parseInt(match[2], 10) + 1 // Convert from 0-indexed to 1-indexed month
-              const day = parseInt(match[3], 10)
+        return promoData;
+      })
+      .filter(promo => promo.discount > 0); // Only include promos with actual discounts
+    
+    setPromoCards(promos);
+    console.log("Loaded promo cards:", promos);
+  } catch (error) {
+    console.error("Error fetching promo cards:", error);
+  } finally {
+    setLoadingPromos(false);
+  }
+};
+
+// Add a function to handle opening the discount form
+const handleAddDiscountClick = () => {
+  setShowDiscountForm(true);
+  fetchPromoCards(); // Fetch promo cards when opening the form
+};
+
+// Add a function to handle selecting a promo
+const handleSelectPromo = (promo) => {
+  setSelectedPromo(promo);
+  
+  // Find the total amount field in the current transaction
+  const totalAmountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('total') && 
+    h.label.toLowerCase().includes('amount')
+  );
+  
+  if (totalAmountHeader && editingTransaction[totalAmountHeader.id]) {
+    const totalAmount = parseFloat(editingTransaction[totalAmountHeader.id]) || 0;
+    const discountPercentage = promo.discount || 0;
+    
+    // Calculate discount amount
+    const discount = (totalAmount * discountPercentage) / 100;
+    setDiscountAmount(discount.toFixed(2));
+    
+    // Calculate new total with discount
+    const newTotal = (totalAmount - discount).toFixed(2);
+    
+    // Update the total in the editing transaction
+    const updatedTransaction = {
+      ...editingTransaction,
+      [totalAmountHeader.id]: newTotal,
+      // Also store the applied discount info for reference
+      _appliedDiscount: {
+        code: promo.code,
+        percentage: discountPercentage,
+        amount: discount.toFixed(2)
+      }
+    };
+    
+    setEditingTransaction(updatedTransaction);
+  }
+};
+
+// Add function to close the discount form
+const handleCloseDiscountForm = () => {
+  setShowDiscountForm(false);
+  setSelectedPromo(null);
+};
+
+// Add function to remove applied discount
+const handleRemoveDiscount = () => {
+  const totalAmountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('total') && 
+    h.label.toLowerCase().includes('amount')
+  );
+  
+  // Find service price and extra service price to recalculate total
+  const servicePriceHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('service price') && 
+    !h.label.toLowerCase().includes('extra')
+  );
+  
+  const extraServicePriceHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('extra service price')
+  );
+  
+  if (totalAmountHeader) {
+    // Recalculate total from service prices
+    const servicePrice = parseFloat(editingTransaction[servicePriceHeader?.id] || 0) || 0;
+    const extraServicePrice = parseFloat(editingTransaction[extraServicePriceHeader?.id] || 0) || 0;
+    const newTotal = (servicePrice + extraServicePrice).toFixed(2);
+    
+    // Update the total without discount
+    const updatedTransaction = {
+      ...editingTransaction,
+      [totalAmountHeader.id]: newTotal
+    };
+    
+    // Remove the discount info
+    delete updatedTransaction._appliedDiscount;
+    
+    setEditingTransaction(updatedTransaction);
+    setSelectedPromo(null);
+    setDiscountAmount(0);
+  }
+};
+  
+  // Handle Input Change for Edit Form
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target
+    console.log(`Field changed: ${name} with value: ${value}`) // Debug log
+    
+    // Create the updated transaction state
+    const updatedTransaction = {
+      ...editingTransaction,
+      [name]: value
+    }
+    
+    // Check if extraServices array exists and has items
+    if (extraServices && extraServices.length > 0) {
+      // Get the header information for the field that is being edited
+      const currentHeader = tableHeaders.find(h => h.id === name)
+      
+      // Check if this is an extra service field (not a price field)
+      if (currentHeader && 
+          currentHeader.label.toLowerCase().includes('extra service') && 
+          !currentHeader.label.toLowerCase().includes('price')) {
+        
+        console.log("Extra service field detected:", currentHeader.label)
+        
+        // Find the price field for the extra service
+        const priceHeader = tableHeaders.find(h => 
+          h.label.toLowerCase().includes('extra') && 
+          h.label.toLowerCase().includes('service') && 
+          h.label.toLowerCase().includes('price')
+        )
+        
+        console.log("Found price field:", priceHeader?.label)
+        
+        if (priceHeader) {
+          // Find the matching service in our options
+          const selectedService = extraServices.find(service => service.name === value)
+          console.log("Selected service:", selectedService)
+          
+          if (selectedService) {
+            console.log(`Auto-filling price: ${selectedService.price}`)
+            updatedTransaction[priceHeader.id] = selectedService.price.toString()
+            
+            // Also update total if available
+            const totalHeader = tableHeaders.find(h => 
+              h.label.toLowerCase().includes('total') && 
+              h.label.toLowerCase().includes('amount')
+            )
+            
+            if (totalHeader) {
+              const serviceHeader = tableHeaders.find(h => 
+                h.label.toLowerCase().includes('service') && 
+                h.label.toLowerCase().includes('price') && 
+                !h.label.toLowerCase().includes('extra')
+              )
               
-              // Format as DD/MM/YYYY for display
-              transactionCopy[`${header.id}_display`] = `${day}/${month}/${year}`
-              
-              // If this field is for a form input, also prepare the YYYY-MM-DD format
-              if (header.label.toLowerCase().includes('date') && 
-                  !header.label.toLowerCase().includes('timestamp')) {
-                // For date input field, format as YYYY-MM-DD
-                transactionCopy[header.id] = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+              if (serviceHeader) {
+                const servicePrice = parseFloat(updatedTransaction[serviceHeader.id] || 0)
+                const extraPrice = selectedService.price
+                updatedTransaction[totalHeader.id] = (servicePrice + extraPrice).toFixed(2)
               }
             }
           }
         }
       }
-    })
+    }
     
-    console.log("Prepared transaction for editing:", transactionCopy)
-    setEditingTransaction(transactionCopy)
-    setShowEditForm(true)
-  }
-  
-  // Handle Input Change for Edit Form
-  const handleEditInputChange = (e) => {
-    const { name, value } = e.target
-    setEditingTransaction(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setEditingTransaction(updatedTransaction)
   }
   
   // Handle Edit Form Submit - IMPROVED to preserve date formats
-  // Modified handleEditSubmit function to preserve DD/MM/YYYY date format
-// Modified handleEditSubmit function to preserve DD/MM/YYYY date format
-// Replace your current handleEditSubmit function with this one
-
-const handleEditSubmit = async (e) => {
-  e.preventDefault()
-  setSubmitting(true)
-  
-  try {
-    const rowIndex = editingTransaction._rowIndex
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
     
-    if (!rowIndex) {
-      throw new Error("Could not determine the row index for updating this transaction")
-    }
-    
-    // Create a deep copy to avoid modifying the original
-    const submissionData = JSON.parse(JSON.stringify(editingTransaction))
-    
-    // Remove the temporary properties we added
-    tableHeaders.forEach(header => {
-      delete submissionData[`${header.id}_original`]
-      delete submissionData[`${header.id}_display`]
-    })
-    
-    // Prepare row data for submission - preserve original date format
-    const rowData = tableHeaders.map(header => {
-      // Get the value from our editing transaction
-      let value = submissionData[header.id] || ''
+    try {
+      const rowIndex = editingTransaction._rowIndex
       
-      // Special handling for date fields - keep the DD/MM/YYYY format instead of converting to Date()
-      if ((header.type === 'date' || header.label.toLowerCase().includes('date')) && value) {
-        // If the value is in YYYY-MM-DD format (from date input fields)
-        if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = value.split('-').map(part => parseInt(part, 10))
-          // Convert to DD/MM/YYYY format
-          value = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
-        }
+      if (!rowIndex) {
+        throw new Error("Could not determine the row index for updating this transaction")
       }
       
-      // Special handling for timestamp column (column A)
-      if (header.label.toLowerCase().includes('timestamp') || 
-          (header.id === 'col0' && (header.label.toLowerCase().includes('date') || header.type === 'date'))) {
-        // Ensure timestamp is always in DD/MM/YYYY format
-        if (value) {
-          // Handle various possible formats
-          // If it's already in DD/MM/YYYY format, leave it
-          if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-            // Already in the correct format
-          } 
-          // If it's in Date() format, convert it
-          else if (value.startsWith('Date(') && value.endsWith(')')) {
-            const match = /Date\((\d+),(\d+),(\d+)\)/.exec(value)
-            if (match) {
-              const year = parseInt(match[1], 10)
-              const month = parseInt(match[2], 10) + 1 // Convert from 0-indexed to 1-indexed month
-              const day = parseInt(match[3], 10)
-              
-              // Format as DD/MM/YYYY for display
-              value = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
+      // Create a deep copy to avoid modifying the original
+      const submissionData = JSON.parse(JSON.stringify(editingTransaction))
+      
+      // Remove the temporary properties we added
+      tableHeaders.forEach(header => {
+        delete submissionData[`${header.id}_original`]
+        delete submissionData[`${header.id}_display`]
+      })
+      
+      // Remove the applied discount info before submission (as it's only for UI reference)
+      delete submissionData._appliedDiscount
+      
+      // Prepare row data for submission - preserve original date format
+      const rowData = tableHeaders.map(header => {
+        // Get the value from our editing transaction
+        let value = submissionData[header.id] || ''
+        
+        // For staff users, if the field wasn't shown in the form (and thus not updated),
+        // we need to keep the original value from the transaction before editing
+        if (user?.role === "staff") {
+          const allowedFields = [
+            "date", "booking id", "customer name", "service", 
+            "service price", "extra service", "extra service price", 
+            "totalamount", "status"
+          ];
+          
+          const headerLabel = header.label.toLowerCase();
+          const isAllowed = allowedFields.some(field => 
+            headerLabel.includes(field)
+          );
+          
+          // If field is not allowed for staff, use the original value from before editing
+          if (!isAllowed) {
+            // Find the original transaction in our transactions array
+            const originalTransaction = transactions.find(t => t._id === editingTransaction._id);
+            if (originalTransaction && originalTransaction[header.id] !== undefined) {
+              value = originalTransaction[header.id];
             }
           }
-          // If it's in YYYY-MM-DD format from a date input
-          else if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        }
+        
+        // Special handling for date fields - keep the DD/MM/YYYY format instead of converting to Date()
+        if ((header.type === 'date' || header.label.toLowerCase().includes('date')) && value) {
+          // If the value is in YYYY-MM-DD format (from date input fields)
+          if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const [year, month, day] = value.split('-').map(part => parseInt(part, 10))
+            // Convert to DD/MM/YYYY format
             value = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
           }
         }
-      }
-      
-      return value
-    })
-    
-    console.log("Submitting data with preserved date formats:", rowData)
-    
-    const formData = new FormData()
-    formData.append('sheetName', sheetName)
-    formData.append('rowData', JSON.stringify(rowData))
-    formData.append('rowIndex', rowIndex)
-    formData.append('action', 'update')
-    
-    const response = await fetch(scriptUrl, {
-      method: 'POST',
-      mode: 'no-cors', 
-      body: formData
-    })
-    
-    console.log("Update submitted successfully")
-    
-    // For UI display, ensure the dates look correct
-    const uiTransaction = { ...editingTransaction }
-    
-    // Make sure dates display correctly in the UI
-    tableHeaders.forEach(header => {
-      if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
-        if (uiTransaction[header.id]) {
-          // If it's a YYYY-MM-DD format from a date input
-          if (uiTransaction[header.id].match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [year, month, day] = uiTransaction[header.id].split('-').map(part => parseInt(part, 10))
-            // Convert to DD/MM/YYYY format for display
-            uiTransaction[`${header.id}_formatted`] = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
-            uiTransaction[header.id] = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
+        
+        // Special handling for timestamp column (column A)
+        if (header.label.toLowerCase().includes('timestamp') || 
+            (header.id === 'col0' && (header.label.toLowerCase().includes('date') || header.type === 'date'))) {
+          // Ensure timestamp is always in DD/MM/YYYY format
+          if (value) {
+            // Handle various possible formats
+            // If it's already in DD/MM/YYYY format, leave it
+            if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+              // Already in the correct format
+            } 
+            // If it's in Date() format, convert it
+            else if (value.startsWith('Date(') && value.endsWith(')')) {
+              const match = /Date\((\d+),(\d+),(\d+)\)/.exec(value)
+              if (match) {
+                const year = parseInt(match[1], 10)
+                const month = parseInt(match[2], 10) + 1 // Convert from 0-indexed to 1-indexed month
+                const day = parseInt(match[3], 10)
+                
+                // Format as DD/MM/YYYY for display
+                value = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
+              }
+            }
+            // If it's in YYYY-MM-DD format from a date input
+            else if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const [year, month, day] = value.split('-').map(part => parseInt(part, 10))
+              value = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
+            }
           }
         }
-      }
-    })
-    
-    // Update transactions in state
-    setTransactions(prev => 
-      prev.map(transaction => 
-        transaction._id === editingTransaction._id ? uiTransaction : transaction  
-      )
-    )
-    
-    // Update transaction in allTransactions
-    setAllTransactions(prev =>
-      prev.map(transaction =>
-        transaction._id === editingTransaction._id ? uiTransaction : transaction
-      )
-    )
-    
-    // Recalculate stats if needed
-    const amountField = tableHeaders.find(h => 
-      h.label && (h.label.toLowerCase().includes('amount') || 
-                  h.label.toLowerCase().includes('price') || 
-                  h.label.toLowerCase().includes('revenue'))
-    )?.id
-    
-    if (amountField) {
-      let totalAmount = 0
-      let cardPayments = 0
+        
+        return value
+      })
       
-      const paymentMethodField = tableHeaders.find(h => 
-        h.label && (h.label.toLowerCase().includes('payment') || 
-                   h.label.toLowerCase().includes('method'))
-      )?.id
+      console.log("Submitting data with preserved date formats:", rowData)
       
-      const updatedTransactions = transactions.map(transaction => 
-        transaction._id === editingTransaction._id ? uiTransaction : transaction
-      )
+      const formData = new FormData()
+      formData.append('sheetName', sheetName)
+      formData.append('rowData', JSON.stringify(rowData))
+      formData.append('rowIndex', rowIndex)
+      formData.append('action', 'update')
       
-      updatedTransactions.forEach(row => {
-        if (row[amountField] && !isNaN(parseFloat(row[amountField]))) {
-          const amount = parseFloat(row[amountField])
-          totalAmount += amount
-          
-          // Check for card payments
-          if (paymentMethodField) {
-            const paymentMethod = row[paymentMethodField]?.toString().toLowerCase() || ''
-            if (paymentMethod.includes('card') || 
-                paymentMethod.includes('credit') || 
-                paymentMethod.includes('debit')) {
-              cardPayments += amount
+      const response = await fetch(scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors', 
+        body: formData
+      })
+      
+      console.log("Update submitted successfully")
+      
+      // For UI display, ensure the dates look correct
+      const uiTransaction = { ...editingTransaction }
+      
+      // Make sure dates display correctly in the UI
+      tableHeaders.forEach(header => {
+        if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
+          if (uiTransaction[header.id]) {
+            // If it's a YYYY-MM-DD format from a date input
+            if (uiTransaction[header.id].match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const [year, month, day] = uiTransaction[header.id].split('-').map(part => parseInt(part, 10))
+              // Convert to DD/MM/YYYY format for display
+              uiTransaction[`${header.id}_formatted`] = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
+              uiTransaction[header.id] = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`
             }
           }
         }
       })
       
-      setStats({
-        totalRevenue: totalAmount,
-        services: updatedTransactions.length,
-        cardPayments: cardPayments,
-        averageSale: updatedTransactions.length > 0 ? totalAmount / updatedTransactions.length : 0
-      })
-    }
-    
-    setShowEditForm(false)
-    
-    setNotification({
-      show: true,
-      message: "Transaction updated successfully!",
-      type: "success"
-    })
-    setTimeout(() => {
-      setNotification({ show: false, message: "", type: "" })
-    }, 3000)
-  } catch (error) {
-    console.error("Error updating transaction:", error)
+      // Update transactions in state
+      setTransactions(prev => 
+        prev.map(transaction => 
+          transaction._id === editingTransaction._id ? uiTransaction : transaction  
+        )
+      )
       
-    setNotification({
-      show: true,
-      message: `Failed to update transaction: ${error.message}`,
-      type: "error" 
-    })
-    setTimeout(() => {
-      setNotification({ show: false, message: "", type: "" })
-    }, 5000)
-  } finally {
-    setSubmitting(false)
+      // Update transaction in allTransactions
+      setAllTransactions(prev =>
+        prev.map(transaction =>
+          transaction._id === editingTransaction._id ? uiTransaction : transaction
+        )
+      )
+      
+      // Recalculate stats if needed
+      const amountField = tableHeaders.find(h => 
+        h.label && (h.label.toLowerCase().includes('amount') || 
+                  h.label.toLowerCase().includes('price') || 
+                  h.label.toLowerCase().includes('revenue'))
+      )?.id
+      
+      if (amountField) {
+        let totalAmount = 0
+        let cardPayments = 0
+        
+        const paymentMethodField = tableHeaders.find(h => 
+          h.label && (h.label.toLowerCase().includes('payment') || 
+                   h.label.toLowerCase().includes('method'))
+        )?.id
+        
+        const updatedTransactions = transactions.map(transaction => 
+          transaction._id === editingTransaction._id ? uiTransaction : transaction
+        )
+        
+        updatedTransactions.forEach(row => {
+          if (row[amountField] && !isNaN(parseFloat(row[amountField]))) {
+            const amount = parseFloat(row[amountField])
+            totalAmount += amount
+            
+            // Check for card payments
+            if (paymentMethodField) {
+              const paymentMethod = row[paymentMethodField]?.toString().toLowerCase() || ''
+              if (paymentMethod.includes('card') || 
+                  paymentMethod.includes('credit') || 
+                  paymentMethod.includes('debit')) {
+                cardPayments += amount
+              }
+            }
+          }
+        })
+        
+        setStats({
+          totalRevenue: totalAmount,
+          services: updatedTransactions.length,
+          cardPayments: cardPayments,
+          averageSale: updatedTransactions.length > 0 ? totalAmount / updatedTransactions.length : 0
+        })
+      }
+      
+      setShowEditForm(false)
+      
+      setNotification({
+        show: true,
+        message: "Transaction updated successfully!",
+        type: "success"
+      })
+      setTimeout(() => {
+        setNotification({ show: false, message: "", type: "" })
+      }, 3000)
+    } catch (error) {
+      console.error("Error updating transaction:", error)
+        
+      setNotification({
+        show: true,
+        message: `Failed to update transaction: ${error.message}`,
+        type: "error" 
+      })
+      setTimeout(() => {
+        setNotification({ show: false, message: "", type: "" })
+      }, 5000)
+    } finally {
+      setSubmitting(false)
+    }
   }
-}
   
   // Function to render appropriate form field based on header type
   const renderFormField = (header) => {
+    const headerLabel = header.label.toLowerCase()
+    
     // For timestamp fields, render with DD/MM/YYYY format
-    if (header.label.toLowerCase().includes('timestamp') || 
-        header.label.toLowerCase().includes('time stamp')) {
+    if (headerLabel.includes('timestamp') || headerLabel.includes('time stamp')) {
       // Check if we have a pre-formatted display value
       const displayValue = editingTransaction[`${header.id}_display`] || editingTransaction[header.id] || ''
       
@@ -617,7 +933,7 @@ const handleEditSubmit = async (e) => {
     }
     
     // Date fields (other than timestamp)
-    if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
+    if (header.type === 'date' || headerLabel.includes('date')) {
       // For date inputs, use YYYY-MM-DD format
       let dateValue = editingTransaction[header.id] || ''
       
@@ -632,11 +948,72 @@ const handleEditSubmit = async (e) => {
         />
       )
     }
+
+    // Extra Service field - Render as dropdown with options from Service DB
+    if (header.label.toLowerCase().includes('extra service') && 
+    !header.label.toLowerCase().includes('price')) {
+
+    return (
+    <select
+      id={`edit-${header.id}`}
+      name={header.id}
+      value={editingTransaction[header.id] || ''}
+      onChange={handleEditInputChange}
+      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500"
+    >
+      <option value="">Select Extra Service</option>
+      {extraServices && extraServices.map((service, index) => (
+        <option key={index} value={service.name}>
+          {service.name}
+        </option>
+      ))}
+    </select>
+    )
+    }
+        
+    // Extra Service field - Render as dropdown with options from Service DB
+    if (headerLabel.includes('extra service') && !headerLabel.includes('price')) {
+      console.log("Rendering Extra Service dropdown") // Debug log
+      return (
+        <select
+          id={`edit-${header.id}`}
+          name={header.id}
+          value={editingTransaction[header.id] || ''}
+          onChange={handleEditInputChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500"
+        >
+          <option value="">Select Extra Service</option>
+          {serviceOptions.map((service, index) => (
+            <option key={index} value={service.name}>
+              {service.name}
+            </option>
+          ))}
+        </select>
+      )
+    }
+    
+    // Status field - Render as dropdown with Completed and Cancel options
+    if (headerLabel === 'status' || headerLabel.includes('status')) {
+      console.log("Rendering Status dropdown") // Debug log
+      return (
+        <select
+          id={`edit-${header.id}`}
+          name={header.id}
+          value={editingTransaction[header.id] || ''}
+          onChange={handleEditInputChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500"
+        >
+          <option value="">Select Status</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancel">Cancel</option>
+        </select>
+      )
+    }
     
     // Amount/Price fields
-    if (header.label.toLowerCase().includes('amount') || 
-        header.label.toLowerCase().includes('price') || 
-        header.label.toLowerCase().includes('revenue')) {
+    if (headerLabel.includes('amount') || 
+        headerLabel.includes('price') || 
+        headerLabel.includes('revenue')) {
       return (
         <input 
           type="number"
@@ -652,8 +1029,7 @@ const handleEditSubmit = async (e) => {
     }
     
     // Payment method field with common options
-    if (header.label.toLowerCase().includes('payment') || 
-        header.label.toLowerCase().includes('method')) {
+    if (headerLabel.includes('payment') || headerLabel.includes('method')) {
       return (
         <select
           id={`edit-${header.id}`}
@@ -1131,7 +1507,8 @@ const handleEditSubmit = async (e) => {
         )}
       </AnimatePresence>
       
-      {/* Edit Form Modal - UPDATED with proper date handling */}
+      {/* Edit Form Modal - Updated with proper date handling */}
+      {/* Edit Form Modal - Updated to show specific fields for staff users, including total amount */}
       <AnimatePresence>
         {showEditForm && (
           <motion.div
@@ -1159,16 +1536,74 @@ const handleEditSubmit = async (e) => {
         
                 <form onSubmit={handleEditSubmit} className="space-y-6"> 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {tableHeaders.map((header) => (
-                      <div key={`edit-${header.id}`}>
-                        <label htmlFor={`edit-${header.id}`} className="block text-sm font-medium text-pink-700">
-                          {header.label}
-                        </label>
-                        {renderFormField(header)}  
-                      </div>
-                    ))}
+                    {/* Check if user is staff, only show specific fields */}
+                    {tableHeaders.map((header) => {
+                      // For staff users, only show specific fields
+                      if (user?.role === "staff") {
+                        // Check if header label matches any of the allowed fields for staff
+                        // Added "total amount" to the list
+                        const allowedFields = [
+                          "date", "booking id", "customer name", "service", 
+                          "service price", "extra service", "extra service price", 
+                          "totalamount", "status"
+                        ];
+                        
+                        const headerLabel = header.label.toLowerCase();
+                        const isAllowed = allowedFields.some(field => 
+                          headerLabel.includes(field)
+                        );
+                        
+                        if (!isAllowed) {
+                          return null; // Don't render this field for staff
+                        }
+                      }
+                      
+                      // Render field normally for admins or allowed fields for staff
+                      return (
+                        <div key={`edit-${header.id}`}>
+                          <label htmlFor={`edit-${header.id}`} className="block text-sm font-medium text-pink-700">
+                            {header.label}
+                          </label>
+                          {renderFormField(header)}  
+                        </div>
+                      );
+                    })}
                   </div>
-            
+
+                  {/* Discount Button and Mini Form */}
+                  {!hideHistoryButton && (
+                  <div className="col-span-full">
+                    <div className="flex items-center justify-between mb-2 mt-2 pt-2 border-t border-gray-200">
+                      <h4 className="text-md font-medium text-gray-700">Apply Discount</h4>
+                      
+                      {editingTransaction._appliedDiscount ? (
+                        <div className="flex items-center">
+                          <span className="text-green-600 mr-4">
+                            {editingTransaction._appliedDiscount.code} discount applied: 
+                            {editingTransaction._appliedDiscount.percentage}% 
+                            (₹{editingTransaction._appliedDiscount.amount})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleRemoveDiscount}
+                            className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleAddDiscountClick}
+                          className="px-3 py-1 bg-pink-100 text-pink-700 rounded-md hover:bg-pink-200 flex items-center"
+                        >
+                          <Plus size={16} className="mr-1" />
+                          Add Discount
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  )}
                   <div className="flex justify-end space-x-3 pt-4 border-t border-pink-100">
                     <button
                       type="button"
@@ -1202,11 +1637,75 @@ const handleEditSubmit = async (e) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Discount Form Modal - Place this outside of Edit Form Modal but inside the main component return */}
+      {showDiscountForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Apply Promo Discount</h3>
+              <button 
+                onClick={handleCloseDiscountForm}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {loadingPromos ? (
+              <div className="py-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-pink-500 mb-2"></div>
+                <p className="text-gray-500">Loading promo cards...</p>
+              </div>
+            ) : promoCards.length === 0 ? (
+              <div className="py-6 text-center bg-gray-50 rounded-md">
+                <p className="text-gray-500">No promo cards available</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {promoCards.map(promo => (
+                  <div 
+                    key={promo.id}
+                    onClick={() => handleSelectPromo(promo)}
+                    className={`p-3 border rounded-md cursor-pointer transition-all ${
+                      selectedPromo?.id === promo.id 
+                        ? 'border-pink-500 bg-pink-50' 
+                        : 'border-gray-200 hover:border-pink-300'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium text-gray-800">{promo.code}</h4>
+                      <span className="text-pink-600 font-bold">{promo.discount}% off</span>
+                    </div>
+                    {promo.description && (
+                      <p className="text-sm text-gray-500 mt-1">{promo.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {selectedPromo && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-500">Discount amount:</span>
+                  <span className="font-medium">₹{discountAmount}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseDiscountForm}
+                  className="w-full mt-2 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700"
+                >
+                  Apply Discount
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
-
 
 // Revenue Chart Component
 const RevenueChart = ({ transactions, tableHeaders }) => {
@@ -1285,7 +1784,4 @@ const RevenueChart = ({ transactions, tableHeaders }) => {
   )
 }
 
-
-
 export default DailyEntry
-      

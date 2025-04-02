@@ -13,10 +13,14 @@ import Services from "../Services.jsx"
 import StaffDB from "../StaffDb.jsx"
 import StaffHistory from "../StaffHistory.jsx"
 import PaymentCommission from "../payment-commission.jsx"
+import DashboardHome from "./DashboardHome.jsx"
+// Import the new components
+import CustomerDb from "../customer-db.jsx"
+import PromoCard from "../promo-card.jsx"
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth()
-  const [activeTab, setActiveTab] = useState("booking")
+  const [activeTab, setActiveTab] = useState("dashboardHome")
   const [activeStaffTab, setActiveStaffTab] = useState("staffAttendance")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [allowedTabs, setAllowedTabs] = useState([])
@@ -26,10 +30,20 @@ const Dashboard = () => {
     // For staff users, allow access to booking, dailyEntry, and inventory
     if (user?.role === "staff") {
       setActiveTab("booking")
-      setAllowedTabs(["booking", "dailyEntry", "inventory", "paymentCommission"])
+      setAllowedTabs(["booking", "dailyEntry", "inventory"])
     } else {
       // Admin users have access to all tabs
-      setAllowedTabs(["booking", "dailyEntry", "staff", "inventory", "services", "paymentCommission"])
+      setAllowedTabs([
+        "dashboardHome",
+        "booking",
+        "dailyEntry",
+        "staff",
+        "inventory",
+        "services",
+        "paymentCommission",
+        "customerDb",
+        "promoCard",
+      ])
     }
   }, [user])
 
@@ -58,10 +72,12 @@ const Dashboard = () => {
 
     // Handle other main tabs (available to both admin and staff where permitted)
     switch (activeTab) {
+      case "dashboardHome":
+        return <DashboardHome isAdmin={user?.role === "admin"} setActiveTab={setActiveTab} />
       case "booking":
         return <Booking hideHistoryButton={user?.role === "staff"} />
       case "dailyEntry":
-        return <DailyEntry hideHistoryButton={user?.role === "staff"} />
+        return <DailyEntry hideHistoryButton={user?.role === "staff"} setActiveTab={setActiveTab} />
       case "inventory":
         return <Inventory hideHistoryButton={user?.role === "staff"} />
       case "services":
@@ -69,6 +85,10 @@ const Dashboard = () => {
         return <Services isAdmin={user?.role === "admin"} />
       case "paymentCommission":
         return <PaymentCommission isAdmin={user?.role === "admin"} />
+      case "customerDb":
+        return <CustomerDb />
+      case "promoCard":
+        return <PromoCard />
       default:
         return <Booking hideHistoryButton={user?.role === "staff"} />
     }

@@ -19,6 +19,7 @@ const getStockStatusFromQuantity = (quantity) => {
   return 'Normal';
 };
 
+
 // Add helper function to find header IDs
 const findHeaderId = (headers, searchTerms) => {
   return headers.find(h => 

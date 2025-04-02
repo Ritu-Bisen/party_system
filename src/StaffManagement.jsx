@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Sidebar from "./Components/Sidebar"
+import Sidebar from "./components/Sidebar"
 // Make sure these file paths and component names match your actual files
 import StaffAttendance from "./StaffAttendance"
 import StaffDB from "./StaffDb" // Check the exact filename case here
