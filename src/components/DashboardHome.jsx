@@ -710,7 +710,7 @@ const DashboardHome = ({ setActiveTab }) => {
       
       // Get recent transactions for the dashboard
       const customerField = headers.find(h => h.label && (h.label.toLowerCase().includes('customer') || h.label.toLowerCase().includes('client')))?.id
-      const serviceField = headers.find(h => h.label && h.label.toLowerCase().includes('service') && !h.label.toLowerCase().includes('price'))?.id
+      const serviceField = headers.find(h => h.label && h.label.toLowerCase().includes('service') && !h.label.toLowerCase().includes('totalamount'))?.id
       const paymentMethodField = headers.find(h => h.label && (h.label.toLowerCase().includes('payment') || h.label.toLowerCase().includes('method')))?.id
       
       // Sort transactions by date (most recent first)
