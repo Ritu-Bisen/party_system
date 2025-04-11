@@ -2,10 +2,26 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { useAuth } from "../Context/AuthContext.jsx"
-import { Calendar, ClipboardCheck, UserCheck, Package, Scissors, ChevronDown, ChevronUp, Database, History, DollarSign, Users, Tag, Home } from 'lucide-react'
+import {
+  Calendar,
+  ClipboardCheck,
+  UserCheck,
+  Package,
+  Scissors,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  History,
+  DollarSign,
+  Users,
+  Tag,
+  Home,
+  KeyRound,
+} from "lucide-react"
 
-const Sidebar = ({
+import { useAuth } from "../Context/AuthContext"
+
+export default function Sidebar({
   activeTab,
   setActiveTab,
   activeStaffTab,
@@ -13,7 +29,7 @@ const Sidebar = ({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   allowedTabs = [], // Tabs that the user is allowed to access
-}) => {
+}) {
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false)
   const { user } = useAuth()
 
@@ -49,9 +65,9 @@ const Sidebar = ({
 
   // Define menu items - FIXED ID FOR DASHBOARD
   const menuItems = [
-    { id: "dashboardHome", label: "Dashboard", icon: <Home size={20} /> },
+    { id: "dashboardHome", label: "Dashboard", icon: <Home size={20} />, adminOnly: true },
     { id: "booking", label: "Booking", icon: <Calendar size={20} /> },
-    { id: "dailyEntry", label: "Daily Entry", icon: <ClipboardCheck size={20} /> },
+    { id: "dailyEntry", label: "Today Booking", icon: <ClipboardCheck size={20} /> },
     // Staff section with submenu
     {
       id: "staff",
@@ -67,9 +83,10 @@ const Sidebar = ({
     },
     { id: "inventory", label: "Inventory", icon: <Package size={20} /> },
     { id: "services", label: "Services", icon: <Scissors size={20} />, adminOnly: true },
-    { id: "paymentCommission", label: "Payment+Commission", icon: <DollarSign size={20} /> },
+    { id: "paymentCommission", label: "Payment+Commission", icon: <DollarSign size={20} />, adminOnly: true },
     { id: "customerDb", label: "Customers", icon: <Users size={20} />, adminOnly: true },
     { id: "promoCard", label: "Promo Cards", icon: <Tag size={20} />, adminOnly: true },
+    { id: "license", label: "License", icon: <KeyRound size={20} />, adminOnly: true },
   ]
 
   return (
@@ -161,5 +178,3 @@ const Sidebar = ({
     </motion.div>
   )
 }
-
-export default Sidebar

@@ -17,8 +17,9 @@ import DashboardHome from "./DashboardHome.jsx"
 // Import the new components
 import CustomerDb from "../customer-db.jsx"
 import PromoCard from "../promo-card.jsx"
+import License from "../license.jsx"
 
-const Dashboard = () => {
+export default function Dashboard() {
   const { user, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState("dashboardHome")
   const [activeStaffTab, setActiveStaffTab] = useState("staffAttendance")
@@ -28,10 +29,11 @@ const Dashboard = () => {
   // Set initial active tab and allowed tabs based on user role
   useEffect(() => {
     // For staff users, allow access to booking, dailyEntry, and inventory
-    if (user?.role === "staff") {
-      setActiveTab("booking")
-      setAllowedTabs(["booking", "dailyEntry", "inventory"])
-    } else {
+    // For staff users, allow access to booking, dailyEntry, and inventory
+if (user?.role === "staff") {
+  setActiveTab("booking")
+  setAllowedTabs(["booking", "dailyEntry", "inventory"])
+} else {
       // Admin users have access to all tabs
       setAllowedTabs([
         "dashboardHome",
@@ -43,6 +45,7 @@ const Dashboard = () => {
         "paymentCommission",
         "customerDb",
         "promoCard",
+        "license",
       ])
     }
   }, [user])
@@ -89,6 +92,8 @@ const Dashboard = () => {
         return <CustomerDb />
       case "promoCard":
         return <PromoCard />
+      case "license":
+        return <License />
       default:
         return <Booking hideHistoryButton={user?.role === "staff"} />
     }
@@ -122,6 +127,3 @@ const Dashboard = () => {
     </div>
   )
 }
-
-export default Dashboard
-

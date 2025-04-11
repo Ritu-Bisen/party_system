@@ -38,13 +38,15 @@ const Booking = ({ hideHistoryButton = false }) => {
   const [serviceData, setServiceData] = useState([]) // State to store service names and prices
 
   // Google Sheet Details
-  const sheetId = '1Kb-fhC1yiFJCyPO7TJDqnu-lQ1n1H6mLErlkSPc6yHc'
+  // const sheetId = '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w'
+  const sheetId = user?.sheetId || '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w';
+  const scriptUrl = user?.appScriptUrl || 'https://script.google.com/macros/s/AKfycbx-5-79dRjYuTIBFjHTh3_Q8WQa0wWrRKm7ukq5854ET9OCHiAwno-gL1YmZ9juotMH/exec';
   const sheetName = 'Booking DB'
   const staffSheetName = 'Staff DB'
   const serviceSheetName = 'Service DB'
   
   // Google Apps Script Web App URL - REPLACE THIS WITH YOUR DEPLOYED SCRIPT URL
-  const scriptUrl = 'https://script.google.com/macros/s/AKfycbyhmDsXWRThVsJCfAirTsI3o9EGE-oCcw2HKz1ERe4qxNWfcVoxMUr3sGa6yHJm-ckt/exec'
+  // const scriptUrl = 'https://script.google.com/macros/s/AKfycbx-5-79dRjYuTIBFjHTh3_Q8WQa0wWrRKm7ukq5854ET9OCHiAwno-gL1YmZ9juotMH/exec'
 
   // Helper function to generate random number within range
   const generateRandomNumber = (min, max) => {

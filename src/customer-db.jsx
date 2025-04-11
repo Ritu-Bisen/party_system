@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Search, Edit, Trash2, UserPlus, Save, X, Users } from 'lucide-react';
+import { useAuth } from "./Context/AuthContext" // Import useAuth hook
+
 
 const CustomerDb = () => {
   // State for customer data and UI
@@ -19,6 +21,8 @@ const CustomerDb = () => {
     message: "",
     type: ""
   });
+  const { user } = useAuth()
+
   
   // Add state for delete confirmation modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -28,11 +32,13 @@ const CustomerDb = () => {
   const [showEditForm, setShowEditForm] = useState(false);
 
   // Google Sheet Details - Replace with your actual sheet ID
-  const sheetId = '1Kb-fhC1yiFJCyPO7TJDqnu-lQ1n1H6mLErlkSPc6yHc';
+  // const sheetId = '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w';
+  const sheetId = user?.sheetId || '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w';
+  const scriptUrl = user?.appScriptUrl || 'https://script.google.com/macros/s/AKfycbx-5-79dRjYuTIBFjHTh3_Q8WQa0wWrRKm7ukq5854ET9OCHiAwno-gL1YmZ9juotMH/exec';
   const sheetName = 'Booking DB';
 
   // Google Apps Script Web App URL - Replace with your actual script URL
-  const scriptUrl = 'https://script.google.com/macros/s/AKfycbyhmDsXWRThVsJCfAirTsI3o9EGE-oCcw2HKz1ERe4qxNWfcVoxMUr3sGa6yHJm-ckt/exec';
+  // const scriptUrl = 'https://script.google.com/macros/s/AKfycbyhmDsXWRThVsJCfAirTsI3o9EGE-oCcw2HKz1ERe4qxNWfcVoxMUr3sGa6yHJm-ckt/exec';
 
   // Fetch customer data from Google Sheet
   useEffect(() => {

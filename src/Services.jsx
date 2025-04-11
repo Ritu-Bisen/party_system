@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Search, Plus, Edit2, Trash2, X, Save, Filter, AlertTriangle, Edit, History } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "./Context/AuthContext"
 
 const Services = ({ isAdmin = false }) => {
   // State management
@@ -33,13 +34,16 @@ const Services = ({ isAdmin = false }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [historySearchTerm, setHistorySearchTerm] = useState("")
   const [allServices, setAllServices] = useState([]) // Store all services for history
+  const { user } = useAuth()
 
   // Google Sheet Details
-  const sheetId = '1Kb-fhC1yiFJCyPO7TJDqnu-lQ1n1H6mLErlkSPc6yHc'
+  // const sheetId = '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w'
+  const sheetId = user?.sheetId || '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w';
+  const scriptUrl = user?.appScriptUrl || 'https://script.google.com/macros/s/AKfycbx-5-79dRjYuTIBFjHTh3_Q8WQa0wWrRKm7ukq5854ET9OCHiAwno-gL1YmZ9juotMH/exec';
   const sheetName = 'Service DB'
 
   // Google Apps Script Web App URL
-  const scriptUrl = 'https://script.google.com/macros/s/AKfycbyhmDsXWRThVsJCfAirTsI3o9EGE-oCcw2HKz1ERe4qxNWfcVoxMUr3sGa6yHJm-ckt/exec'
+  // const scriptUrl = 'https://script.google.com/macros/s/AKfycbyhmDsXWRThVsJCfAirTsI3o9EGE-oCcw2HKz1ERe4qxNWfcVoxMUr3sGa6yHJm-ckt/exec'
 
   useEffect(() => {
     fetchServiceData()

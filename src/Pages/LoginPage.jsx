@@ -8,7 +8,7 @@ import { useAuth } from "../Context/AuthContext.jsx"
 
 const LoginPage = () => {
   const navigate = useNavigate()
-  const { login, isAuthenticated, user } = useAuth()
+  const { login, logout, isAuthenticated, user } = useAuth()
 
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
@@ -18,6 +18,8 @@ const LoginPage = () => {
   const [error, setError] = useState("")
   // State for password change alert
   const [showPasswordChangeAlert, setShowPasswordChangeAlert] = useState(false)
+  // State to hold matched client data
+  const [matchedClient, setMatchedClient] = useState(null)
 
   // Redirect if already logged in
   useEffect(() => {
@@ -28,9 +30,13 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate])
 
-  // Google Sheet Details
-  const sheetId = "1Kb-fhC1yiFJCyPO7TJDqnu-lQ1n1H6mLErlkSPc6yHc"
-  const sheetName = "Login"
+  // Initial client sheet details
+  const initialSheetId = "1zEik6_I7KhRQOucBhk1FW_67IUEdcSfEHjCaR37aK_U"
+  const initialSheetName = "Clients"
+  const initialScriptUrl = "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
+
+  // We'll directly check username/password in the Clients sheet
+  // so we don't need to fetch client sheets ahead of time
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -45,10 +51,13 @@ const LoginPage = () => {
         return
       }
 
-      // Fetch login data from Google Sheet
-      console.log("Fetching login credentials from Google Sheet...")
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`
-
+      // Directly check the Clients sheet for username/password in columns C and D
+      console.log("Checking credentials in Clients sheet...")
+      
+      // Fetch the Clients sheet data
+      const url = `https://docs.google.com/spreadsheets/d/${initialSheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(initialSheetName)}`
+      
+      console.log(`Fetching from: ${url}`)
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`)
@@ -61,43 +70,92 @@ const LoginPage = () => {
       const jsonString = text.substring(jsonStart, jsonEnd + 1)
       const data = JSON.parse(jsonString)
 
-      // Process the login data
+      // Process the client data
       if (!data.table || !data.table.rows) {
-        throw new Error("Invalid login data format")
+        throw new Error("Invalid client data format")
       }
 
-      // Extract credentials from the sheet
-      // First column (A) is email/ID, second column (B) is password, and we'll check for a role column (C)
-      const credentials = data.table.rows
-        .filter((row) => row.c && row.c[0] && row.c[1])
+      // Extract client data with credentials from the sheet
+      // Column A (index 0) is sheet ID
+      // Column B (index 1) is script URL
+      // Column C (index 2) is username
+      // Column D (index 3) is password
+      // Column G (index 6) is now checked for a value > 0
+      const clientData = data.table.rows
+        .filter((row) => row.c && row.c[0] && row.c[1] && row.c[2] && row.c[3])
         .map((row) => ({
-          id: row.c[0].v,
-          password: row.c[1].v,
-          // Check if there's a column C with password change flag (optional)
-          passwordChangeRequired: row.c[2] ? row.c[2].v === true || row.c[2].v === "true" || row.c[2].v === 1 : false,
-          // Check for role in column D (index 3) if it exists
-          role: row.c[3] && row.c[3].v ? row.c[3].v : null
+          sheetId: row.c[0].v.toString().trim(),
+          scriptUrl: row.c[1].v.toString().trim(),
+          username: row.c[2].v.toString().trim(),
+          password: row.c[3].v.toString().trim(),
+          // Optionally extract role from column E (index 4) if it exists
+          role: row.c[4] && row.c[4].v ? row.c[4].v.toString().trim() : null,
+          // Get the value from column G (index 6) - for authorization check
+          authValue: row.c[6] && row.c[6].v !== undefined ? parseFloat(row.c[6].v) : 0
         }))
 
-      console.log(`Found ${credentials.length} user records`)
+      console.log(`Found ${clientData.length} client records`)
 
       // Check if credentials match
-      const userMatch = credentials.find((cred) => cred.id === email && cred.password === password)
+      const clientMatch = clientData.find(
+        (client) => client.username === email && client.password === password
+      )
 
-      if (userMatch) {
-        console.log("Login successful")
-
-        // Check if password change is required
-        if (userMatch.passwordChangeRequired) {
-          // Show password change alert
-          setShowPasswordChangeAlert(true)
-          setIsLoading(false)
-          return
+      if (clientMatch) {
+        console.log("Found matching credentials:", clientMatch)
+        
+        // Check if the value in column G is greater than 0 for authorization
+        if (clientMatch.authValue > 0) {
+          console.log("Login authorized! Column G value:", clientMatch.authValue)
+          setMatchedClient(clientMatch)
+          
+          // Continue with normal login flow using the matched client's sheet ID and script URL
+          proceedWithLogin(
+            { 
+              id: clientMatch.username,
+              role: clientMatch.role 
+            }, 
+            clientMatch.sheetId, 
+            clientMatch.scriptUrl
+          )
+        } else {
+          // Credentials match but not authorized (column G value <= 0)
+          console.log("Login failed: User account not authorized (Column G value <= 0)")
+          
+          // Log the user in first so we can immediately log them out
+          // This creates a better user experience than simply showing an error
+          const tempUserData = {
+            email: clientMatch.username,
+            name: clientMatch.username.split('@')[0],
+            role: clientMatch.role || "staff",
+            staffName: clientMatch.username.split('@')[0]
+          };
+          
+          // Log in temporarily
+          login(tempUserData, clientMatch.sheetId, clientMatch.scriptUrl);
+          
+          // Set a timeout to automatically log out and show the error message
+          setTimeout(() => {
+            // Import the logout function if necessary
+            // Import at the top of the file: const { login, logout, isAuthenticated, user } = useAuth()
+            
+            // Navigate to admin dashboard first (this will show briefly)
+            navigate("/admin-dashboard");
+            
+            // Then show error and log out after a short delay
+            setTimeout(() => {
+              alert("Your account is not active. Please contact administrator.");
+              // Log the user out - this should be added to the useAuth export
+              logout();
+              // Redirect back to login page
+              navigate("/");
+            }, 500);
+          }, 100);
+          
+          setIsLoading(false);
         }
-
-        // Continue with normal login flow
-        proceedWithLogin(userMatch)
       } else {
+        // No matching credentials found
         console.log("Login failed: Invalid credentials")
         setError("Invalid email or password")
         setIsLoading(false)
@@ -110,57 +168,51 @@ const LoginPage = () => {
   }
 
   // Function to handle proceeding with login after alert
-  // Inside the proceedWithLogin function in LoginPage.jsx
+  const proceedWithLogin = (userMatch, sheetId, scriptUrl) => {
+    setShowPasswordChangeAlert(false);
 
-// In LoginPage.jsx, modify your proceedWithLogin function
+    // Determine the role - If username is "admin" or has explicit role in spreadsheet
+    let userRole = "staff"; // Default role
+    
+    // Check if user is admin by username
+    if (userMatch?.id.toLowerCase() === "admin") {
+      userRole = "admin";
+    } 
+    // Or check if role is specified in the spreadsheet
+    else if (userMatch?.role) {
+      userRole = userMatch.role.toLowerCase();
+    }
+    
+    // Get the user ID (email or username)
+    const userId = userMatch?.id || email;
+    
+    // Extract name part if it's an email
+    const userName = userId.split('@')[0];
+    
+    // Create user object with ALL required properties
+    // IMPORTANT: Explicitly set staffName to match what's in the booking sheet
+    const userData = {
+      email: userId,
+      name: userName,
+      role: userRole,
+      staffName: userName  // This is the critical line - setting staffName explicitly
+    };
+    
+    // Add debug output
+    console.log("User data being passed to login:", userData);
+    console.log("Using Sheet ID:", sheetId);
+    console.log("Using Script URL:", scriptUrl);
+    
+    // Log the user in with sheet data
+    login(userData, sheetId, scriptUrl);
+    
+    // Navigate to the appropriate dashboard with a small delay
+    setTimeout(() => {
+      navigate("/admin-dashboard", { replace: true });
+    }, 100);
 
-// In LoginPage.jsx, modify your proceedWithLogin function
-
-// In LoginPage.jsx, modify your proceedWithLogin function
-
-const proceedWithLogin = (userMatch) => {
-  setShowPasswordChangeAlert(false);
-
-  // Determine the role - If username is "admin" or has explicit role in spreadsheet
-  let userRole = "staff"; // Default role
-  
-  // Check if user is admin by username
-  if (userMatch?.id.toLowerCase() === "admin") {
-    userRole = "admin";
-  } 
-  // Or check if role is specified in the spreadsheet
-  else if (userMatch?.role) {
-    userRole = userMatch.role.toLowerCase();
+    setIsLoading(false);
   }
-  
-  // Get the user ID (email or username)
-  const userId = userMatch?.id || email;
-  
-  // Extract name part if it's an email
-  const userName = userId.split('@')[0];
-  
-  // Create user object with ALL required properties
-  // IMPORTANT: Explicitly set staffName to match what's in the booking sheet
-  const userData = {
-    email: userId,
-    name: userName,
-    role: userRole,
-    staffName: userName  // This is the critical line - setting staffName explicitly
-  };
-  
-  // Add debug output
-  console.log("User data being passed to login:", userData);
-  
-  // Log the user in
-  login(userData);
-  
-  // Navigate to the appropriate dashboard with a small delay
-  setTimeout(() => {
-    navigate("/admin-dashboard", { replace: true });
-  }, 100);
-
-  setIsLoading(false);
-}
 
   // Animation variants
   const fadeIn = {
@@ -231,11 +283,6 @@ const proceedWithLogin = (userMatch) => {
           </div>
 
           <motion.div variants={floatingAnimation} initial="initial" animate="animate" className="relative z-10 p-8">
-                {/* <img
-                src="https://unsplash.com/s/photos/hair-salon?height=500&width=500"
-                alt="Salon Management"
-                className="mx-auto mb-6 rounded-lg shadow-lg"
-                /> */}
             <h2 className="text-2xl font-bold mb-5">Professional Salon Management</h2>
             <p className="text-white/80 mb-6">
               Streamline your salon operations with our comprehensive management solution.
@@ -406,7 +453,20 @@ const proceedWithLogin = (userMatch) => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => proceedWithLogin({ id: email })}
+                  onClick={() => {
+                    // Use the matchedClient data that was stored when we found a match
+                    if (matchedClient) {
+                      proceedWithLogin(
+                        { id: matchedClient.username, role: matchedClient.role },
+                        matchedClient.sheetId,
+                        matchedClient.scriptUrl
+                      )
+                    } else {
+                      // Fallback if somehow matchedClient is not available
+                      setShowPasswordChangeAlert(false)
+                      setIsLoading(false)
+                    }
+                  }}
                   className="inline-flex justify-center px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 border border-transparent rounded-lg shadow-sm hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
                 >
                   Continue to Dashboard
