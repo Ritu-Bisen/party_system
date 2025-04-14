@@ -48,7 +48,7 @@ const DailyEntry = ({ hideHistoryButton = false }) => {
   const [selectedExtraServices, setSelectedExtraServices] = useState([])
 
   // Google Sheet Details
-  // const sheetId = '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w'
+  // const sheetId = '1Kb-fhC1yiFJCyPO7TJDqnu-lQ1n1H6mLErlkSPc6yHc'
   const sheetId = user?.sheetId || '1ghSQ9d2dfSotfnh8yrkiqIT00kg_ej7n0pnygzP0B9w';
   const scriptUrl = user?.appScriptUrl || 'https://script.google.com/macros/s/AKfycbx-5-79dRjYuTIBFjHTh3_Q8WQa0wWrRKm7ukq5854ET9OCHiAwno-gL1YmZ9juotMH/exec';
   const sheetName = 'Daily Entry'
@@ -1336,7 +1336,7 @@ const handleExtraServiceCheckboxChange = (service) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4 flex items-center">
           <div className="rounded-full bg-green-100 p-3 mr-4">
             <IndianRupee size={24} className="text-green-600" />
@@ -1373,7 +1373,7 @@ const handleExtraServiceCheckboxChange = (service) => {
             <p className="text-2xl font-bold text-gray-800">₹{stats.averageSale.toFixed(2)}</p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Transactions Table - Modified to match Booking component style */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -1482,7 +1482,7 @@ const handleExtraServiceCheckboxChange = (service) => {
       </div>
 
       {/* Chart Section - Only display if not hidden */}
-      {!hideHistoryButton && (
+      {/* {!hideHistoryButton && (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-medium text-gray-800 mb-4">Revenue Breakdown</h3>
           {loading ? (
@@ -1502,7 +1502,7 @@ const handleExtraServiceCheckboxChange = (service) => {
             <RevenueChart transactions={transactions} tableHeaders={tableHeaders} />
           )}
         </div>
-      )}
+      )} */}
 
       {/* History Modal - Shows All Transaction Data */}
       <AnimatePresence>

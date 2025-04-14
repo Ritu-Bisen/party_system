@@ -18,35 +18,82 @@ import DashboardHome from "./DashboardHome.jsx"
 import CustomerDb from "../customer-db.jsx"
 import PromoCard from "../promo-card.jsx"
 import License from "../license.jsx"
+import AppointmentHistory from "../AppointmentHistory.jsx"
+import WhatsappTemplate from "../WhattsappTemplate.jsx"
+
+// Map component names to identifiers used in permissions
+const COMPONENT_PERMISSION_MAP = {
+  "dashboardHome": "dashboard",
+  "booking": "appointment",
+  "dailyEntry": "runningappointment",
+  "appointmentHistory": "appointmenthistory",
+  "staff": "staff",
+  "staffAttendance": "staffattendance",
+  "staffDB": "staffdb",
+  "staffHistory": "staffhistory",
+  "inventory": "inventory",
+  "services": "services",
+  "paymentCommission": "paymentcommission",
+  "customerDb": "customers",
+  "promoCard": "promocards",
+  "license": "license",
+  "whatsappTemplate": "whatsapptemplate"
+}
 
 export default function Dashboard() {
-  const { user, isAuthenticated } = useAuth()
-  const [activeTab, setActiveTab] = useState("dashboardHome")
+  const { user, isAuthenticated, hasPermission } = useAuth()
+  const [activeTab, setActiveTab] = useState("booking") // Changed default to booking
   const [activeStaffTab, setActiveStaffTab] = useState("staffAttendance")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [allowedTabs, setAllowedTabs] = useState([])
 
-  // Set initial active tab and allowed tabs based on user role
+  // Set initial active tab and allowed tabs based on user role and permissions
   useEffect(() => {
-    // For staff users, allow access to booking, dailyEntry, and inventory
-    // For staff users, allow access to booking, dailyEntry, and inventory
-if (user?.role === "staff") {
-  setActiveTab("booking")
-  setAllowedTabs(["booking", "dailyEntry", "inventory"])
-} else {
-      // Admin users have access to all tabs
-      setAllowedTabs([
-        "dashboardHome",
-        "booking",
-        "dailyEntry",
-        "staff",
-        "inventory",
-        "services",
-        "paymentCommission",
-        "customerDb",
-        "promoCard",
-        "license",
-      ])
+    // Function to check if a component is allowed based on user permissions
+    const isComponentAllowed = (componentId) => {
+      // Special case: if user has 'all' permission, allow everything
+      if (user?.permissions?.includes('all')) {
+        return true
+      }
+
+      // Map component ID to permission name
+      const permissionName = COMPONENT_PERMISSION_MAP[componentId]
+      
+      // Check if user has this specific permission
+      return permissionName && user?.permissions?.includes(permissionName)
+    }
+
+    // Calculate allowed tabs based on permissions in column H
+    const permissionBasedTabs = []
+    
+    // All possible tabs to check
+    const allPossibleTabs = [
+      "dashboardHome", "booking", "dailyEntry", "appointmentHistory", 
+      "staff", "inventory", "services", "paymentCommission",
+      "customerDb", "promoCard", "license", "whatsappTemplate"
+    ]
+    
+    // Check each tab against user permissions
+    allPossibleTabs.forEach(tab => {
+      if (isComponentAllowed(tab)) {
+        permissionBasedTabs.push(tab)
+      }
+    })
+    
+    console.log("Allowed tabs based on permissions:", permissionBasedTabs)
+    setAllowedTabs(permissionBasedTabs)
+    
+    // Set initial active tab - try to find the first allowed tab
+    if (permissionBasedTabs.length > 0) {
+      // Try to use booking as default for staff, dashboardHome for admin if available
+      if (user?.role === "staff" && permissionBasedTabs.includes("booking")) {
+        setActiveTab("booking")
+      } else if (user?.role === "admin" && permissionBasedTabs.includes("dashboardHome")) {
+        setActiveTab("dashboardHome")
+      } else {
+        // Otherwise use the first allowed tab
+        setActiveTab(permissionBasedTabs[0])
+      }
     }
   }, [user])
 
@@ -57,47 +104,105 @@ if (user?.role === "staff") {
     }
   }
 
-  // This function handles the main content rendering
+  // Check if staff submenu items are allowed based on permissions
+  const isStaffSubmenuAllowed = (subTabName) => {
+    const permissionName = COMPONENT_PERMISSION_MAP[subTabName]
+    return permissionName && (
+      user?.permissions?.includes(permissionName) || 
+      user?.permissions?.includes('all') ||
+      user?.permissions?.includes('staff')
+    )
+  }
+
+  // This function handles the main content rendering based on permissions
   const renderContent = () => {
     // For admin users with staff tab selected
-    if (user?.role === "admin" && activeTab === "staff") {
+    if (activeTab === "staff") {
+      // Check if the specific staff submenu is allowed
       switch (activeStaffTab) {
         case "staffAttendance":
-          return <StaffAttendance />
+          return isStaffSubmenuAllowed("staffAttendance") ? <StaffAttendance /> : <AccessDenied />
         case "staffDB":
-          return <StaffDB />
+          return isStaffSubmenuAllowed("staffDB") ? <StaffDB /> : <AccessDenied />
         case "staffHistory":
-          return <StaffHistory />
+          return isStaffSubmenuAllowed("staffHistory") ? <StaffHistory /> : <AccessDenied />
         default:
-          return <StaffAttendance />
+          return <AccessDenied />
       }
     }
 
     // Handle other main tabs (available to both admin and staff where permitted)
+    // For each tab, check if user has appropriate permission
     switch (activeTab) {
       case "dashboardHome":
-        return <DashboardHome isAdmin={user?.role === "admin"} setActiveTab={setActiveTab} />
+        return allowedTabs.includes("dashboardHome") ? 
+          <DashboardHome isAdmin={user?.role === "admin"} setActiveTab={setActiveTab} /> : 
+          <AccessDenied />
       case "booking":
-        return <Booking hideHistoryButton={user?.role === "staff"} />
+        return allowedTabs.includes("booking") ? 
+          <Booking hideHistoryButton={user?.role === "staff"} /> : 
+          <AccessDenied />
       case "dailyEntry":
-        return <DailyEntry hideHistoryButton={user?.role === "staff"} setActiveTab={setActiveTab} />
+        return allowedTabs.includes("dailyEntry") ? 
+          <DailyEntry hideHistoryButton={user?.role === "staff"} setActiveTab={setActiveTab} /> : 
+          <AccessDenied />
+      case "appointmentHistory":
+        return allowedTabs.includes("appointmentHistory") ? 
+          <AppointmentHistory /> : 
+          <AccessDenied />
       case "inventory":
-        return <Inventory hideHistoryButton={user?.role === "staff"} />
+        return allowedTabs.includes("inventory") ? 
+          <Inventory hideHistoryButton={user?.role === "staff"} /> : 
+          <AccessDenied />
       case "services":
-        // Pass isAdmin prop based on user role
-        return <Services isAdmin={user?.role === "admin"} />
+        return allowedTabs.includes("services") ? 
+          <Services isAdmin={user?.role === "admin"} /> : 
+          <AccessDenied />
       case "paymentCommission":
-        return <PaymentCommission isAdmin={user?.role === "admin"} />
+        return allowedTabs.includes("paymentCommission") ? 
+          <PaymentCommission isAdmin={user?.role === "admin"} /> : 
+          <AccessDenied />
       case "customerDb":
-        return <CustomerDb />
+        return allowedTabs.includes("customerDb") ? 
+          <CustomerDb /> : 
+          <AccessDenied />
       case "promoCard":
-        return <PromoCard />
+        return allowedTabs.includes("promoCard") ? 
+          <PromoCard /> : 
+          <AccessDenied />
       case "license":
-        return <License />
+        return allowedTabs.includes("license") ? 
+          <License /> : 
+          <AccessDenied />
+      case "whatsappTemplate":
+        return allowedTabs.includes("whatsappTemplate") ? 
+          <WhatsappTemplate /> : 
+          <AccessDenied />
       default:
-        return <Booking hideHistoryButton={user?.role === "staff"} />
+        // Fallback to first allowed tab
+        return allowedTabs.length > 0 ? 
+          renderContent(allowedTabs[0]) : 
+          <AccessDenied message="No components available with your permissions" />
     }
   }
+
+  // AccessDenied component to show when user doesn't have permission
+  const AccessDenied = ({ message }) => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-red-50 rounded-lg">
+      <div className="w-16 h-16 mb-4 text-red-500 flex items-center justify-center rounded-full bg-red-100">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-3V6a3 3 0 00-3-3H6a3 3 0 00-3 3v6a3 3 0 003 3h6a3 3 0 003-3z" />
+        </svg>
+      </div>
+      <h2 className="mb-2 text-xl font-semibold text-red-700">Access Denied</h2>
+      <p className="text-red-600">
+        {message || "You don't have permission to view this component."}
+      </p>
+      <p className="mt-4 text-sm text-gray-600">
+        Please contact your administrator if you believe this is a mistake.
+      </p>
+    </div>
+  )
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gradient-to-br from-blue-50 to-indigo-100">

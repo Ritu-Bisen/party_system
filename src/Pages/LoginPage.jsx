@@ -33,11 +33,10 @@ const LoginPage = () => {
   // Initial client sheet details
   const initialSheetId = "1zEik6_I7KhRQOucBhk1FW_67IUEdcSfEHjCaR37aK_U"
   const initialSheetName = "Clients"
-  const initialScriptUrl = "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
+  const initialScriptUrl =
+    "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
 
-  // We'll directly check username/password in the Clients sheet
-  // so we don't need to fetch client sheets ahead of time
-
+  // Update the handleSubmit function to check column H for permissions
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
@@ -53,10 +52,10 @@ const LoginPage = () => {
 
       // Directly check the Clients sheet for username/password in columns C and D
       console.log("Checking credentials in Clients sheet...")
-      
+
       // Fetch the Clients sheet data
       const url = `https://docs.google.com/spreadsheets/d/${initialSheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(initialSheetName)}`
-      
+
       console.log(`Fetching from: ${url}`)
       const response = await fetch(url)
       if (!response.ok) {
@@ -81,6 +80,8 @@ const LoginPage = () => {
       // Column C (index 2) is username
       // Column D (index 3) is password
       // Column G (index 6) is now checked for a value > 0
+      // Column H (index 7) is checked for permissions
+      // Column I (index 8) is checked for role value
       const clientData = data.table.rows
         .filter((row) => row.c && row.c[0] && row.c[1] && row.c[2] && row.c[3])
         .map((row) => ({
@@ -91,68 +92,88 @@ const LoginPage = () => {
           // Optionally extract role from column E (index 4) if it exists
           role: row.c[4] && row.c[4].v ? row.c[4].v.toString().trim() : null,
           // Get the value from column G (index 6) - for authorization check
-          authValue: row.c[6] && row.c[6].v !== undefined ? parseFloat(row.c[6].v) : 0
+          authValue: row.c[6] && row.c[6].v !== undefined ? Number.parseFloat(row.c[6].v) : 0,
+          // Get the value from column H (index 7) - for permissions
+          permissionsValue: row.c[7] && row.c[7].v ? row.c[7].v.toString().trim() : "",
+          // Get the value from column I (index 8) - for role/filtering
+          columnIValue: row.c[8] && row.c[8].v ? row.c[8].v.toString().trim() : "",
         }))
 
       console.log(`Found ${clientData.length} client records`)
 
       // Check if credentials match
-      const clientMatch = clientData.find(
-        (client) => client.username === email && client.password === password
-      )
+      const clientMatch = clientData.find((client) => client.username === email && client.password === password)
 
       if (clientMatch) {
         console.log("Found matching credentials:", clientMatch)
-        
+
         // Check if the value in column G is greater than 0 for authorization
         if (clientMatch.authValue > 0) {
           console.log("Login authorized! Column G value:", clientMatch.authValue)
+          console.log("Column I value:", clientMatch.columnIValue)
+          console.log("Permissions (Column H):", clientMatch.permissionsValue)
           setMatchedClient(clientMatch)
-          
+
+          // Determine role based on column I value
+          let userRole = "staff" // Default role
+          if (clientMatch.columnIValue === "admin") {
+            userRole = "admin"
+          }
+
+          // Parse permissions from column H
+          const permissions = clientMatch.permissionsValue 
+            ? clientMatch.permissionsValue.split(',').map(p => p.trim().toLowerCase())
+            : []
+
+          // Store permissions in localStorage
+          localStorage.setItem("userPermissions", JSON.stringify(permissions))
+
           // Continue with normal login flow using the matched client's sheet ID and script URL
           proceedWithLogin(
-            { 
+            {
               id: clientMatch.username,
-              role: clientMatch.role 
-            }, 
-            clientMatch.sheetId, 
-            clientMatch.scriptUrl
+              role: userRole,
+              columnIValue: clientMatch.columnIValue,
+              permissions: permissions
+            },
+            clientMatch.sheetId,
+            clientMatch.scriptUrl,
           )
         } else {
           // Credentials match but not authorized (column G value <= 0)
           console.log("Login failed: User account not authorized (Column G value <= 0)")
-          
+
           // Log the user in first so we can immediately log them out
           // This creates a better user experience than simply showing an error
           const tempUserData = {
             email: clientMatch.username,
-            name: clientMatch.username.split('@')[0],
+            name: clientMatch.username.split("@")[0],
             role: clientMatch.role || "staff",
-            staffName: clientMatch.username.split('@')[0]
-          };
-          
+            staffName: clientMatch.username.split("@")[0],
+          }
+
           // Log in temporarily
-          login(tempUserData, clientMatch.sheetId, clientMatch.scriptUrl);
-          
+          login(tempUserData, clientMatch.sheetId, clientMatch.scriptUrl)
+
           // Set a timeout to automatically log out and show the error message
           setTimeout(() => {
             // Import the logout function if necessary
-            // Import at the top of the file: const { login, logout, isAuthenticated, user } = useAuth()
-            
+            //Import at the top of the file: const { login, logout, isAuthenticated, user } = useAuth()
+
             // Navigate to admin dashboard first (this will show briefly)
-            navigate("/admin-dashboard");
-            
+            navigate("/admin-dashboard")
+
             // Then show error and log out after a short delay
             setTimeout(() => {
-              alert("Your account is not active. Please contact administrator.");
+              alert("Your account is not active. Please contact administrator.")
               // Log the user out - this should be added to the useAuth export
-              logout();
+              logout()
               // Redirect back to login page
-              navigate("/");
-            }, 500);
-          }, 100);
-          
-          setIsLoading(false);
+              navigate("/")
+            }, 500)
+          }, 100)
+
+          setIsLoading(false)
         }
       } else {
         // No matching credentials found
@@ -167,51 +188,54 @@ const LoginPage = () => {
     }
   }
 
-  // Function to handle proceeding with login after alert
+  // Update the proceedWithLogin function to include permissions
   const proceedWithLogin = (userMatch, sheetId, scriptUrl) => {
-    setShowPasswordChangeAlert(false);
+    setShowPasswordChangeAlert(false)
 
-    // Determine the role - If username is "admin" or has explicit role in spreadsheet
-    let userRole = "staff"; // Default role
-    
-    // Check if user is admin by username
-    if (userMatch?.id.toLowerCase() === "admin") {
-      userRole = "admin";
-    } 
-    // Or check if role is specified in the spreadsheet
-    else if (userMatch?.role) {
-      userRole = userMatch.role.toLowerCase();
+    // Determine the role - If column I value is "admin" or has explicit role in spreadsheet
+    let userRole = "staff" // Default role
+
+    // Check if user is admin by column I value
+    if (userMatch?.columnIValue === "admin") {
+      userRole = "admin"
     }
-    
+    // Or check if role is specified in the spreadsheet
+    else if (userMatch?.role === "admin") {
+      userRole = "admin"
+    }
+
     // Get the user ID (email or username)
-    const userId = userMatch?.id || email;
-    
+    const userId = userMatch?.id || email
+
     // Extract name part if it's an email
-    const userName = userId.split('@')[0];
-    
+    const userName = userId.split("@")[0]
+
     // Create user object with ALL required properties
     // IMPORTANT: Explicitly set staffName to match what's in the booking sheet
     const userData = {
       email: userId,
       name: userName,
       role: userRole,
-      staffName: userName  // This is the critical line - setting staffName explicitly
-    };
-    
+      staffName: userName, // This is the critical line - setting staffName explicitly
+      columnIValue: userMatch?.columnIValue || "", // Store the column I value for filtering
+      permissions: userMatch?.permissions || [], // Store the permissions from column H
+    }
+
     // Add debug output
-    console.log("User data being passed to login:", userData);
-    console.log("Using Sheet ID:", sheetId);
-    console.log("Using Script URL:", scriptUrl);
-    
+    console.log("User data being passed to login:", userData)
+    console.log("Using Sheet ID:", sheetId)
+    console.log("Using Script URL:", scriptUrl)
+    console.log("User permissions:", userData.permissions)
+
     // Log the user in with sheet data
-    login(userData, sheetId, scriptUrl);
-    
+    login(userData, sheetId, scriptUrl)
+
     // Navigate to the appropriate dashboard with a small delay
     setTimeout(() => {
-      navigate("/admin-dashboard", { replace: true });
-    }, 100);
+      navigate("/admin-dashboard", { replace: true })
+    }, 100)
 
-    setIsLoading(false);
+    setIsLoading(false)
   }
 
   // Animation variants
@@ -457,9 +481,15 @@ const LoginPage = () => {
                     // Use the matchedClient data that was stored when we found a match
                     if (matchedClient) {
                       proceedWithLogin(
-                        { id: matchedClient.username, role: matchedClient.role },
+                        { 
+                          id: matchedClient.username, 
+                          role: matchedClient.role,
+                          permissions: matchedClient.permissionsValue 
+                            ? matchedClient.permissionsValue.split(',').map(p => p.trim().toLowerCase())
+                            : []
+                        },
                         matchedClient.sheetId,
-                        matchedClient.scriptUrl
+                        matchedClient.scriptUrl,
                       )
                     } else {
                       // Fallback if somehow matchedClient is not available
