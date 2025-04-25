@@ -23,21 +23,21 @@ import WhatsappTemplate from "../WhattsappTemplate.jsx"
 
 // Map component names to identifiers used in permissions
 const COMPONENT_PERMISSION_MAP = {
-  "dashboardHome": "dashboard",
-  "booking": "appointment",
-  "dailyEntry": "runningappointment",
-  "appointmentHistory": "appointmenthistory",
-  "staff": "staff",
-  "staffAttendance": "staffattendance",
-  "staffDB": "staffdb",
-  "staffHistory": "staffhistory",
-  "inventory": "inventory",
-  "services": "services",
-  "paymentCommission": "paymentcommission",
-  "customerDb": "customers",
-  "promoCard": "promocards",
-  "license": "license",
-  "whatsappTemplate": "whatsapptemplate"
+  dashboardHome: "dashboard",
+  booking: "appointment",
+  dailyEntry: "runningappointment",
+  appointmentHistory: "appointmenthistory",
+  staff: "staff",
+  staffAttendance: "staffattendance",
+  staffDB: "staffdb",
+  staffHistory: "staffhistory",
+  inventory: "inventory",
+  services: "services",
+  paymentCommission: "paymentcommission",
+  customerDb: "customers",
+  promoCard: "promocards",
+  license: "license",
+  whatsappTemplate: "whatsapptemplate",
 }
 
 export default function Dashboard() {
@@ -52,37 +52,46 @@ export default function Dashboard() {
     // Function to check if a component is allowed based on user permissions
     const isComponentAllowed = (componentId) => {
       // Special case: if user has 'all' permission, allow everything
-      if (user?.permissions?.includes('all')) {
+      if (user?.permissions?.includes("all")) {
         return true
       }
 
       // Map component ID to permission name
       const permissionName = COMPONENT_PERMISSION_MAP[componentId]
-      
+
       // Check if user has this specific permission
       return permissionName && user?.permissions?.includes(permissionName)
     }
 
     // Calculate allowed tabs based on permissions in column H
     const permissionBasedTabs = []
-    
+
     // All possible tabs to check
     const allPossibleTabs = [
-      "dashboardHome", "booking", "dailyEntry", "appointmentHistory", 
-      "staff", "inventory", "services", "paymentCommission",
-      "customerDb", "promoCard", "license", "whatsappTemplate"
+      "dashboardHome",
+      "booking",
+      "dailyEntry",
+      "appointmentHistory",
+      "staff",
+      "inventory",
+      "services",
+      "paymentCommission",
+      "customerDb",
+      "promoCard",
+      "license",
+      "whatsappTemplate",
     ]
-    
+
     // Check each tab against user permissions
-    allPossibleTabs.forEach(tab => {
+    allPossibleTabs.forEach((tab) => {
       if (isComponentAllowed(tab)) {
         permissionBasedTabs.push(tab)
       }
     })
-    
+
     console.log("Allowed tabs based on permissions:", permissionBasedTabs)
     setAllowedTabs(permissionBasedTabs)
-    
+
     // Set initial active tab - try to find the first allowed tab
     if (permissionBasedTabs.length > 0) {
       // Try to use booking as default for staff, dashboardHome for admin if available
@@ -107,10 +116,11 @@ export default function Dashboard() {
   // Check if staff submenu items are allowed based on permissions
   const isStaffSubmenuAllowed = (subTabName) => {
     const permissionName = COMPONENT_PERMISSION_MAP[subTabName]
-    return permissionName && (
-      user?.permissions?.includes(permissionName) || 
-      user?.permissions?.includes('all') ||
-      user?.permissions?.includes('staff')
+    return (
+      permissionName &&
+      (user?.permissions?.includes(permissionName) ||
+        user?.permissions?.includes("all") ||
+        user?.permissions?.includes("staff"))
     )
   }
 
@@ -135,54 +145,54 @@ export default function Dashboard() {
     // For each tab, check if user has appropriate permission
     switch (activeTab) {
       case "dashboardHome":
-        return allowedTabs.includes("dashboardHome") ? 
-          <DashboardHome isAdmin={user?.role === "admin"} setActiveTab={setActiveTab} /> : 
+        return allowedTabs.includes("dashboardHome") ? (
+          <DashboardHome isAdmin={user?.role === "admin"} setActiveTab={setActiveTab} />
+        ) : (
           <AccessDenied />
+        )
       case "booking":
-        return allowedTabs.includes("booking") ? 
-          <Booking hideHistoryButton={user?.role === "staff"} /> : 
+        return allowedTabs.includes("booking") ? (
+          <Booking hideHistoryButton={user?.role === "staff"} />
+        ) : (
           <AccessDenied />
+        )
       case "dailyEntry":
-        return allowedTabs.includes("dailyEntry") ? 
-          <DailyEntry hideHistoryButton={user?.role === "staff"} setActiveTab={setActiveTab} /> : 
+        return allowedTabs.includes("dailyEntry") ? (
+          <DailyEntry hideHistoryButton={user?.role === "staff"} setActiveTab={setActiveTab} />
+        ) : (
           <AccessDenied />
+        )
       case "appointmentHistory":
-        return allowedTabs.includes("appointmentHistory") ? 
-          <AppointmentHistory /> : 
-          <AccessDenied />
+        return allowedTabs.includes("appointmentHistory") ? <AppointmentHistory /> : <AccessDenied />
       case "inventory":
-        return allowedTabs.includes("inventory") ? 
-          <Inventory hideHistoryButton={user?.role === "staff"} /> : 
+        return allowedTabs.includes("inventory") ? (
+          <Inventory hideHistoryButton={user?.role === "staff"} />
+        ) : (
           <AccessDenied />
+        )
       case "services":
-        return allowedTabs.includes("services") ? 
-          <Services isAdmin={user?.role === "admin"} /> : 
-          <AccessDenied />
+        return allowedTabs.includes("services") ? <Services isAdmin={user?.role === "admin"} /> : <AccessDenied />
       case "paymentCommission":
-        return allowedTabs.includes("paymentCommission") ? 
-          <PaymentCommission isAdmin={user?.role === "admin"} /> : 
+        return allowedTabs.includes("paymentCommission") ? (
+          <PaymentCommission isAdmin={user?.role === "admin"} />
+        ) : (
           <AccessDenied />
+        )
       case "customerDb":
-        return allowedTabs.includes("customerDb") ? 
-          <CustomerDb /> : 
-          <AccessDenied />
+        return allowedTabs.includes("customerDb") ? <CustomerDb /> : <AccessDenied />
       case "promoCard":
-        return allowedTabs.includes("promoCard") ? 
-          <PromoCard /> : 
-          <AccessDenied />
+        return allowedTabs.includes("promoCard") ? <PromoCard /> : <AccessDenied />
       case "license":
-        return allowedTabs.includes("license") ? 
-          <License /> : 
-          <AccessDenied />
+        return allowedTabs.includes("license") ? <License /> : <AccessDenied />
       case "whatsappTemplate":
-        return allowedTabs.includes("whatsappTemplate") ? 
-          <WhatsappTemplate /> : 
-          <AccessDenied />
+        return allowedTabs.includes("whatsappTemplate") ? <WhatsappTemplate /> : <AccessDenied />
       default:
         // Fallback to first allowed tab
-        return allowedTabs.length > 0 ? 
-          renderContent(allowedTabs[0]) : 
+        return allowedTabs.length > 0 ? (
+          renderContent(allowedTabs[0])
+        ) : (
           <AccessDenied message="No components available with your permissions" />
+        )
     }
   }
 
@@ -190,17 +200,24 @@ export default function Dashboard() {
   const AccessDenied = ({ message }) => (
     <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-red-50 rounded-lg">
       <div className="w-16 h-16 mb-4 text-red-500 flex items-center justify-center rounded-full bg-red-100">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-3V6a3 3 0 00-3-3H6a3 3 0 00-3 3v6a3 3 0 003 3h6a3 3 0 003-3z" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-8 h-8"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-3V6a3 3 0 00-3-3H6a3 3 0 00-3 3v6a3 3 0 003 3h6a3 3 0 003-3z"
+          />
         </svg>
       </div>
       <h2 className="mb-2 text-xl font-semibold text-red-700">Access Denied</h2>
-      <p className="text-red-600">
-        {message || "You don't have permission to view this component."}
-      </p>
-      <p className="mt-4 text-sm text-gray-600">
-        Please contact your administrator if you believe this is a mistake.
-      </p>
+      <p className="text-red-600">{message || "You don't have permission to view this component."}</p>
+      <p className="mt-4 text-sm text-gray-600">Please contact your administrator if you believe this is a mistake.</p>
     </div>
   )
 
@@ -228,6 +245,16 @@ export default function Dashboard() {
         >
           {renderContent()}
         </motion.main>
+        <footer className="w-full py-1 px-3 text-center text-xs text-black bg-blue-300 border-t border-gray-200 shadow-sm">
+          <a
+            href="https://botivate.in/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-blue-600 transition-colors duration-200"
+          >
+            Powered By-Botivate
+          </a>
+        </footer>
       </div>
     </div>
   )
