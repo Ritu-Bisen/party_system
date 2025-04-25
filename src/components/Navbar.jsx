@@ -1,21 +1,21 @@
 "use client"
 
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react"
 import { Menu, LogOut, Globe, User } from "lucide-react"
-import { useAuth } from '../Context/AuthContext.jsx';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from "../Context/AuthContext.jsx"
+import { useNavigate } from "react-router-dom"
 
 const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  const translateBtnRef = useRef(null);
-  
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+  const translateBtnRef = useRef(null)
+
   // Function to handle logout
   const handleLogout = () => {
-    console.log("Logging out...");
-    logout();
-    navigate('/login');
-  };
+    console.log("Logging out...")
+    logout()
+    navigate("/login")
+  }
 
   const navigateToProfile = () => {
     navigate("/profile")
@@ -25,28 +25,31 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   useEffect(() => {
     // Add Google Translate script to the document
     const addScript = () => {
-      const script = document.createElement('script');
-      script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-      script.async = true;
-      document.body.appendChild(script);
+      const script = document.createElement("script")
+      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+      script.async = true
+      document.body.appendChild(script)
 
       // Initialize the translate element
       window.googleTranslateElementInit = () => {
-        new window.google.translate.TranslateElement({
-          pageLanguage: 'en',
-          includedLanguages: 'en,hi', // Only include English and Hindi
-          layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false
-        }, 'google_translate_element');
-      };
-    };
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: "en",
+            includedLanguages: "en,hi", // Only include English and Hindi
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false,
+          },
+          "google_translate_element",
+        )
+      }
+    }
 
     if (!document.querySelector('script[src*="translate.google.com"]')) {
-      addScript();
+      addScript()
     }
 
     // Create a style to position the Google Translate element correctly
-    const style = document.createElement('style');
+    const style = document.createElement("style")
     style.textContent = `
       #google_translate_element {
         position: fixed;
@@ -69,129 +72,133 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         box-shadow: 0 0 8px rgba(0,0,0,0.2) !important;
         position: fixed !important;
       }
-    `;
-    document.head.appendChild(style);
+    `
+    document.head.appendChild(style)
 
     // Cleanup function
     return () => {
-      delete window.googleTranslateElementInit;
-      const script = document.querySelector('script[src*="translate.google.com"]');
+      delete window.googleTranslateElementInit
+      const script = document.querySelector('script[src*="translate.google.com"]')
       if (script) {
-        script.remove();
+        script.remove()
       }
       if (style) {
-        style.remove();
+        style.remove()
       }
-    };
-  }, []);
+    }
+  }, [])
 
   // Function to trigger Google Translate popup
   const handleTranslateClick = () => {
     // Try different methods to trigger the Google Translate dropdown
-    
+
     // Method 1: Find and click the translate button
-    const googleElement = document.getElementById('google_translate_element');
-    
+    const googleElement = document.getElementById("google_translate_element")
+
     if (googleElement) {
       // Try to find the clickable element in Google Translate widget
-      const translateButton = googleElement.querySelector('.goog-te-gadget-simple') || 
-                              googleElement.querySelector('.goog-te-menu-value') ||
-                              googleElement.querySelector('.VIpgJd-ZVi9od-l4eHX-hSRGPd');
-      
+      const translateButton =
+        googleElement.querySelector(".goog-te-gadget-simple") ||
+        googleElement.querySelector(".goog-te-menu-value") ||
+        googleElement.querySelector(".VIpgJd-ZVi9od-l4eHX-hSRGPd")
+
       if (translateButton) {
         // Click the element to show the dropdown
-        translateButton.click();
-        return;
+        translateButton.click()
+        return
       }
-      
+
       // Method 2: If we can't find the button, try to programmatically position and show the dropdown
       // Get button position for dropdown placement
-      const buttonRect = translateBtnRef.current.getBoundingClientRect();
-      
+      const buttonRect = translateBtnRef.current.getBoundingClientRect()
+
       // Position the Google element near our button temporarily
-      googleElement.style.position = 'absolute';
-      googleElement.style.top = `${buttonRect.bottom + window.scrollY}px`;
-      googleElement.style.right = `${window.innerWidth - buttonRect.right - window.scrollX}px`;
-      googleElement.style.height = 'auto';
-      googleElement.style.overflow = 'visible';
-      googleElement.style.zIndex = '1000';
-      
+      googleElement.style.position = "absolute"
+      googleElement.style.top = `${buttonRect.bottom + window.scrollY}px`
+      googleElement.style.right = `${window.innerWidth - buttonRect.right - window.scrollX}px`
+      googleElement.style.height = "auto"
+      googleElement.style.overflow = "visible"
+      googleElement.style.zIndex = "1000"
+
       // Force Google Translate to create its dropdown
-      const select = googleElement.querySelector('select.goog-te-combo');
+      const select = googleElement.querySelector("select.goog-te-combo")
       if (select) {
         // Programmatically open the dropdown
-        const event = new MouseEvent('mousedown', {
+        const event = new MouseEvent("mousedown", {
           bubbles: true,
           cancelable: true,
-          view: window
-        });
-        select.dispatchEvent(event);
-        
+          view: window,
+        })
+        select.dispatchEvent(event)
+
         // Reset position after a delay
         setTimeout(() => {
-          googleElement.style.position = 'fixed';
-          googleElement.style.top = '-1000px';
-          googleElement.style.right = '-1000px';
-          googleElement.style.height = '0';
-          googleElement.style.overflow = 'hidden';
-        }, 5000); // Hide it after 5 seconds
+          googleElement.style.position = "fixed"
+          googleElement.style.top = "-1000px"
+          googleElement.style.right = "-1000px"
+          googleElement.style.height = "0"
+          googleElement.style.overflow = "hidden"
+        }, 5000) // Hide it after 5 seconds
       }
     }
-  };
-  
+  }
+
   return (
     <>
       <header className="bg-white border-b border-blue-200 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3 md:px-6">
+        <div className="container mx-auto flex items-center justify-between px-4 py-3 md:px-6">
           <div className="flex items-center">
             <button
               className="p-2 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300 md:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle menu"
             >
               <Menu size={20} />
             </button>
-            <h1 className="ml-2 text-xl font-semibold text-blue-800 md:hidden">Salon Dashboard</h1>
+            {/* Title visible on all screen sizes, but styled differently */}
+            <h1 className="ml-2 text-xl font-semibold text-blue-800 md:text-2xl">Salon Dashboard</h1>
           </div>
-          <div className="flex items-center space-x-4">
+
+          {/* Responsive button container */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Hidden Google Translate Element */}
             <div id="google_translate_element"></div>
-            
-            {/* Custom Translate Button */}
+
+            {/* Custom Translate Button - Text hidden on small screens */}
             <button
               ref={translateBtnRef}
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
+              className="flex items-center space-x-1 px-2 py-1.5 sm:px-3 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
               onClick={handleTranslateClick}
+              aria-label="Change language"
             >
               <Globe size={16} />
-              <span className="text-sm">Language</span>
-            </button>
-            
-            <button
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
-              onClick={navigateToProfile}
-            >
-              <User size={16} />
-              <span className="text-sm">Profile</span>
+              <span className="hidden sm:inline text-sm">Language</span>
             </button>
 
-            {/* Logout Button */}
+            {/* Profile Button - Text hidden on small screens */}
             <button
-              className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-white bg-red-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
+              className="flex items-center space-x-1 px-2 py-1.5 sm:px-3 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
+              onClick={navigateToProfile}
+              aria-label="View profile"
+            >
+              <User size={16} />
+              <span className="hidden sm:inline text-sm">Profile</span>
+            </button>
+
+            {/* Logout Button - Text hidden on extra small screens */}
+            <button
+              className="flex items-center space-x-1 px-2 py-1.5 sm:px-3 rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-300"
               onClick={handleLogout}
+              aria-label="Logout"
             >
               <LogOut size={16} />
-              <span className="text-sm">Logout</span>
+              <span className="hidden xs:inline sm:inline text-sm">Logout</span>
             </button>
-            {/* <img
-              src="https://t4.ftcdn.net/jpg/02/88/65/87/240_F_288658769_P0XwssJydQP9EJRBfL6K1HwyNZ5ttw09.jpg"
-              alt="Salon Logo"
-              className="h-10 hidden sm:block"
-            /> */}
           </div>
         </div>
       </header>
     </>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar
