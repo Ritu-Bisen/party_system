@@ -7,6 +7,7 @@ import Dashboard from "./components/Dashboard.jsx"
 import ProtectedRoute from "./Routes/ProtectedRoute.jsx"
 import LoginPage from "./Pages/LoginPage.jsx"
 import Booking from "./components/Booking.jsx" // Import individual components
+import ProfilePage from "./Pages/ProfilePage.jsx" // Import the new ProfilePage
 import DailyEntry from "./DailyEntry.jsx"
 import AppointmentHistory from "./AppointmentHistory.jsx"
 import "./index.css"
@@ -26,6 +27,7 @@ function App() {
               <Route path="/booking" element={<Booking hideHistoryButton={false} />} />
               <Route path="/daily-entry" element={<DailyEntry hideHistoryButton={false} />} />
               <Route path="/appointment-history" element={<AppointmentHistory />} />
+              <Route path="/profile" element={<ProfilePage />} />
               {/* Add other routes for different sections */}
             </Route>
 

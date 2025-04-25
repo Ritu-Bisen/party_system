@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef } from "react";
-import { Menu, LogOut, Globe } from "lucide-react";
+import { Menu, LogOut, Globe, User } from "lucide-react"
 import { useAuth } from '../Context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +16,10 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     logout();
     navigate('/login');
   };
+
+  const navigateToProfile = () => {
+    navigate("/profile")
+  }
 
   // Initialize Google Translate Element
   useEffect(() => {
@@ -162,6 +166,14 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               <span className="text-sm">Language</span>
             </button>
             
+            <button
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-100 border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
+              onClick={navigateToProfile}
+            >
+              <User size={16} />
+              <span className="text-sm">Profile</span>
+            </button>
+
             {/* Logout Button */}
             <button
               className="flex items-center space-x-1 px-3 py-1.5 rounded-md text-white bg-red-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
@@ -170,11 +182,11 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               <LogOut size={16} />
               <span className="text-sm">Logout</span>
             </button>
-            <img
+            {/* <img
               src="https://t4.ftcdn.net/jpg/02/88/65/87/240_F_288658769_P0XwssJydQP9EJRBfL6K1HwyNZ5ttw09.jpg"
               alt="Salon Logo"
               className="h-10 hidden sm:block"
-            />
+            /> */}
           </div>
         </div>
       </header>

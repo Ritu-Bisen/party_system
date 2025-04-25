@@ -291,15 +291,24 @@ useEffect(() => {
       // Save all transactions for history view (already filtered by staff)
       setAllTransactions(staffFilteredRows)
       
-      // Find the date field
+      // Find the date field and status field
       const dateField = headers.find(h => h.label && h.label.toLowerCase().includes('date'))?.id
+      const statusHeader = headers.find(h => h.label.toLowerCase().includes('status'))
       
+      // Modified filtering to exclude completed transactions
       const filteredTransactions = dateField 
         ? staffFilteredRows.filter(row => {
-            if (!row[dateField]) return false
+            // First check date
+            if (!row[dateField]) return false;
+            
+            // Then check status (if status column exists)
+            if (statusHeader) {
+              const status = row[statusHeader.id]?.toString().toLowerCase();
+              if (status === 'completed') return false;
+            }
             
             // Try to match the date in different formats
-            const rowDate = row[dateField]
+            const rowDate = row[dateField];
             
             // Check formatted date
             if (row[`${dateField}_formatted`]) {
@@ -343,7 +352,14 @@ useEffect(() => {
             
             return false
           })
-        : staffFilteredRows
+        : staffFilteredRows.filter(row => {
+            // For non-date filtered rows, still exclude completed
+            if (statusHeader) {
+              const status = row[statusHeader.id]?.toString().toLowerCase();
+              return status !== 'completed';
+            }
+            return true;
+          });
       
       setTransactions(filteredTransactions)
       
@@ -493,6 +509,7 @@ useEffect(() => {
  // Create a new function to handle checkbox changes for extra services
 // Create a new function to handle checkbox changes for extra services
 // Modified function with improved debugging and service price retrieval
+// Modified function with improved debugging and proper total calculation
 const handleExtraServiceCheckboxChange = (service) => {
   console.log("Service clicked:", service.name, "Price:", service.price);
   console.log("Current editing transaction:", editingTransaction);
@@ -533,13 +550,6 @@ const handleExtraServiceCheckboxChange = (service) => {
     !h.label.toLowerCase().includes('extra')
   );
   
-  console.log("Headers found:", { 
-    extraServiceHeader: extraServiceHeader?.id, 
-    extraServicePriceHeader: extraServicePriceHeader?.id,
-    totalAmountHeader: totalAmountHeader?.id,
-    servicePriceHeader: servicePriceHeader?.id
-  });
-  
   // Calculate total price for all selected services
   let totalExtraPrice = 0;
   updatedSelectedServices.forEach(serviceName => {
@@ -567,47 +577,66 @@ const handleExtraServiceCheckboxChange = (service) => {
     updatedTransaction[extraServicePriceHeader.id] = totalExtraPrice.toFixed(2);
   }
   
-  // Get the service price - check all possible ways it might be stored
+  // DEBUG: Print all the values in the transaction object
+  console.log("ALL TRANSACTION VALUES:");
+  Object.keys(updatedTransaction).forEach(key => {
+    console.log(`${key}: ${updatedTransaction[key]}`);
+  });
+  
+  // CRITICAL FIX: Get service price from the correct field
+  // Based on your comment about "column H", let's try to find that column
+  // Assuming columns are 0-indexed, column H would be index 7
   let servicePrice = 0;
   
+  // Try to get from the header first
   if (servicePriceHeader) {
-    // Log all the properties in the transaction to help debug
-    console.log("All properties in transaction:", Object.keys(updatedTransaction));
-    console.log("Service price from header id:", updatedTransaction[servicePriceHeader.id]);
-    
-    // Try to find service price field by header id
-    if (updatedTransaction[servicePriceHeader.id] !== undefined) {
-      servicePrice = parseFloat(updatedTransaction[servicePriceHeader.id]) || 0;
-    } 
-    // Try to find by 'ServicePrice' key directly if header approach fails
-    else if (updatedTransaction['ServicePrice'] !== undefined) {
-      servicePrice = parseFloat(updatedTransaction['ServicePrice']) || 0;
+    const headerValue = updatedTransaction[servicePriceHeader.id];
+    if (headerValue !== undefined && headerValue !== '') {
+      servicePrice = Number(headerValue);
+      console.log(`Got service price from header (${servicePriceHeader.id}): ${servicePrice}`);
     }
-    // Try lowercase version
-    else if (updatedTransaction['serviceprice'] !== undefined) {
-      servicePrice = parseFloat(updatedTransaction['serviceprice']) || 0;
+  }
+  
+  // If that didn't work, try to find column H (index 7)
+  if (servicePrice === 0) {
+    const col7 = updatedTransaction['col7'];
+    if (col7 !== undefined && col7 !== '') {
+      servicePrice = Number(col7);
+      console.log(`Got service price from column H (col7): ${servicePrice}`);
     }
-    // Final fallback - search for any key containing 'service' and 'price'
-    else {
-      const possibleKeys = Object.keys(updatedTransaction).filter(key => 
-        key.toLowerCase().includes('service') && 
-        key.toLowerCase().includes('price') && 
-        !key.toLowerCase().includes('extra')
-      );
-      
-      console.log("Possible service price keys:", possibleKeys);
-      
-      if (possibleKeys.length > 0) {
-        servicePrice = parseFloat(updatedTransaction[possibleKeys[0]]) || 0;
+  }
+  
+  // If still zero, try input form value directly
+  if (servicePrice === 0) {
+    const servicePriceInput = document.getElementById(`edit-${servicePriceHeader?.id}`);
+    if (servicePriceInput && servicePriceInput.value) {
+      servicePrice = Number(servicePriceInput.value);
+      console.log(`Got service price from input element: ${servicePrice}`);
+    }
+  }
+  
+  // If all else fails, try all object keys for anything that looks like a price
+  if (servicePrice === 0) {
+    Object.keys(updatedTransaction).forEach(key => {
+      // Look for any field that might contain service price
+      if ((key.toLowerCase().includes('service') && 
+           key.toLowerCase().includes('price') && 
+           !key.toLowerCase().includes('extra')) ||
+          key.startsWith('col')) {  // Or try column fields
+        
+        const value = Number(updatedTransaction[key]);
+        if (!isNaN(value) && value > 0) {
+          console.log(`Potential service price in field ${key}: ${value}`);
+        }
       }
-    }
+    });
   }
   
   console.log("Found Service Price:", servicePrice);
   console.log("Extra Service Price Total:", totalExtraPrice);
   
-  // Calculate the new total
-  const newTotal = servicePrice + totalExtraPrice;
+  // Calculate the new total - make sure to use Number() to force numeric addition
+  const newTotal = Number(servicePrice) + Number(totalExtraPrice);
   console.log("New Total Amount:", newTotal);
   
   // Update total amount field
@@ -619,77 +648,136 @@ const handleExtraServiceCheckboxChange = (service) => {
   setEditingTransaction(updatedTransaction);
 };
 
-  const fetchPromoCards = async () => {
-    try {
-      setLoadingPromos(true);
-      
-      // Use the same sheetId but different sheet name for promos
-      const promoSheetName = 'Promo Cards';
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(promoSheetName)}`;
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch promo data: ${response.status}`);
-      }
-      
-      const text = await response.text();
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonString);
-      
-      if (!data.table || !data.table.rows) {
-        console.log("No promo data found");
-        setPromoCards([]);
-        setLoadingPromos(false);
-        return;
-      }
-      
-      // Extract headers from cols
-      const headers = data.table.cols.map((col, index) => ({
-        id: `col${index}`,
-        label: col.label || col.id,
-        type: col.type
-      })).filter(header => header.label);
-      
-      // Find relevant column indices
-      const codeColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('code'));
-      const discountColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('discount'));
-      const descriptionColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('description'));
-      const deletedColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('delete'));
-      
-      // Process rows
-      const promos = data.table.rows
-        .filter(row => {
-          // Skip deleted promos
-          const isDeleted = deletedColumnIndex !== -1 && 
-                          row.c && 
-                          row.c.length > deletedColumnIndex && 
-                          row.c[deletedColumnIndex] && 
-                          row.c[deletedColumnIndex].v === "Yes";
-          return !isDeleted && row.c && row.c.some(cell => cell && cell.v);
-        })
-        .map(row => {
-          // Basic info for each promo card
-          const promoData = {
-            id: Math.random().toString(36).substring(2, 15),
-            code: row.c[codeColumnIndex]?.v || 'Unknown',
-            discount: parseFloat(row.c[discountColumnIndex]?.v) || 0,
-            description: row.c[descriptionColumnIndex]?.v || ''
-          };
-          
-          return promoData;
-        })
-        .filter(promo => promo.discount > 0); // Only include promos with actual discounts
-      
-      setPromoCards(promos);
-      console.log("Loaded promo cards:", promos);
-    } catch (error) {
-      console.error("Error fetching promo cards:", error);
-    } finally {
-      setLoadingPromos(false);
+const fetchPromoCards = async () => {
+  try {
+    setLoadingPromos(true);
+    
+    // Use the same sheetId but different sheet name for promos
+    const promoSheetName = 'Promo Cards';
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(promoSheetName)}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch promo data: ${response.status}`);
     }
-  };
+    
+    const text = await response.text();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    const jsonString = text.substring(jsonStart, jsonEnd + 1);
+    const data = JSON.parse(jsonString);
+    
+    if (!data.table || !data.table.rows) {
+      console.log("No promo data found");
+      setPromoCards([]);
+      setLoadingPromos(false);
+      return;
+    }
+    
+    // Extract headers from cols
+    const headers = data.table.cols.map((col, index) => ({
+      id: `col${index}`,
+      label: col.label || col.id,
+      type: col.type
+    })).filter(header => header.label);
+    
+    // Find relevant column indices
+    const codeColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('code'));
+    const discountColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('discount'));
+    const descriptionColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('description'));
+    const deletedColumnIndex = headers.findIndex(h => h.label.toLowerCase().includes('delete'));
+    
+    // Find expiry date column index
+    const expiryDateColumnIndex = headers.findIndex(h => 
+      h.label.toLowerCase().includes('expiry') || 
+      h.label.toLowerCase().includes('valid until') || 
+      h.label.toLowerCase().includes('end date')
+    );
+    
+    console.log("Column indices:", {
+      code: codeColumnIndex,
+      discount: discountColumnIndex,
+      description: descriptionColumnIndex,
+      deleted: deletedColumnIndex,
+      expiryDate: expiryDateColumnIndex
+    });
+    
+    // Get today's date for comparison
+    const today = new Date();
+    
+    // Process rows
+    const promos = data.table.rows
+      .filter(row => {
+        // Skip deleted promos
+        const isDeleted = deletedColumnIndex !== -1 && 
+                        row.c && 
+                        row.c.length > deletedColumnIndex && 
+                        row.c[deletedColumnIndex] && 
+                        row.c[deletedColumnIndex].v === "Yes";
+        
+        // Skip expired promos if there's an expiry date column
+        let isExpired = false;
+        if (expiryDateColumnIndex !== -1 && row.c && row.c.length > expiryDateColumnIndex && row.c[expiryDateColumnIndex]) {
+          // Get expiry date value
+          const expiryDateValue = row.c[expiryDateColumnIndex].v;
+          
+          if (expiryDateValue) {
+            // Handle different date formats
+            let expiryDate;
+            
+            // For Google Sheets date: Date(year,month,day)
+            if (typeof expiryDateValue === 'string' && expiryDateValue.startsWith('Date(')) {
+              const match = /Date\((\d+),(\d+),(\d+)\)/.exec(expiryDateValue);
+              if (match) {
+                const year = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10); // 0-indexed month
+                const day = parseInt(match[3], 10);
+                expiryDate = new Date(year, month, day);
+              }
+            } 
+            // For DD/MM/YYYY format
+            else if (typeof expiryDateValue === 'string' && expiryDateValue.includes('/')) {
+              const [day, month, year] = expiryDateValue.split('/').map(Number);
+              expiryDate = new Date(year, month - 1, day); // Month is 0-indexed in JS
+            }
+            // For direct date value
+            else if (expiryDateValue instanceof Date) {
+              expiryDate = expiryDateValue;
+            }
+            
+            if (expiryDate && !isNaN(expiryDate.getTime())) {
+              // Set time to end of day
+              expiryDate.setHours(23, 59, 59, 999);
+              isExpired = today > expiryDate;
+              
+              console.log(`Promo expiry check: ${row.c[codeColumnIndex]?.v}, Expiry: ${expiryDate.toDateString()}, Today: ${today.toDateString()}, Expired: ${isExpired}`);
+            }
+          }
+        }
+        
+        return !isDeleted && !isExpired && row.c && row.c.some(cell => cell && cell.v);
+      })
+      .map(row => {
+        // Basic info for each promo card
+        const promoData = {
+          id: Math.random().toString(36).substring(2, 15),
+          code: row.c[codeColumnIndex]?.v || 'Unknown',
+          discount: parseFloat(row.c[discountColumnIndex]?.v) || 0,
+          description: row.c[descriptionColumnIndex]?.v || ''
+        };
+        
+        return promoData;
+      })
+      .filter(promo => promo.discount > 0); // Only include promos with actual discounts
+    
+    setPromoCards(promos);
+    console.log("Loaded valid, non-expired promo cards:", promos);
+  } catch (error) {
+    console.error("Error fetching promo cards:", error);
+  } finally {
+    setLoadingPromos(false);
+  }
+};
 
   // Add a function to handle opening the discount form
   const handleAddDiscountClick = () => {
@@ -698,41 +786,106 @@ const handleExtraServiceCheckboxChange = (service) => {
   };
 
   // Add a function to handle selecting a promo
-  const handleSelectPromo = (promo) => {
-    setSelectedPromo(promo);
+ // Modify the handleSelectPromo function to save the discount percentage to column O
+
+const handleSelectPromo = (promo) => {
+  setSelectedPromo(promo);
+  
+  // Find the total amount field in the current transaction
+  const totalAmountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('total') && 
+    h.label.toLowerCase().includes('amount')
+  );
+  
+  // Find the discount column (typically column O)
+  const discountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('discount')
+  );
+  
+  if (totalAmountHeader && editingTransaction[totalAmountHeader.id]) {
+    const totalAmount = parseFloat(editingTransaction[totalAmountHeader.id]) || 0;
+    const discountPercentage = promo.discount || 0;
     
-    // Find the total amount field in the current transaction
-    const totalAmountHeader = tableHeaders.find(h => 
-      h.label.toLowerCase().includes('total') && 
-      h.label.toLowerCase().includes('amount')
-    );
+    // Calculate discount amount
+    const discount = (totalAmount * discountPercentage) / 100;
+    setDiscountAmount(discount.toFixed(2));
     
-    if (totalAmountHeader && editingTransaction[totalAmountHeader.id]) {
-      const totalAmount = parseFloat(editingTransaction[totalAmountHeader.id]) || 0;
-      const discountPercentage = promo.discount || 0;
-      
-      // Calculate discount amount
-      const discount = (totalAmount * discountPercentage) / 100;
-      setDiscountAmount(discount.toFixed(2));
-      
-      // Calculate new total with discount
-      const newTotal = (totalAmount - discount).toFixed(2);
-      
-      // Update the total in the editing transaction
-      const updatedTransaction = {
-        ...editingTransaction,
-        [totalAmountHeader.id]: newTotal,
-        // Also store the applied discount info for reference
-        _appliedDiscount: {
-          code: promo.code,
-          percentage: discountPercentage,
-          amount: discount.toFixed(2)
-        }
-      };
-      
-      setEditingTransaction(updatedTransaction);
+    // Calculate new total with discount
+    const newTotal = (totalAmount - discount).toFixed(2);
+    
+    // Update the transaction with discount information
+    const updatedTransaction = {
+      ...editingTransaction,
+      [totalAmountHeader.id]: newTotal,
+      // Store the applied discount info for reference
+      _appliedDiscount: {
+        code: promo.code,
+        percentage: discountPercentage,
+        amount: discount.toFixed(2)
+      }
+    };
+    
+    // Add the discount percentage to the discount column
+    if (discountHeader) {
+      // Format the discount as a percentage (e.g., "10%")
+      updatedTransaction[discountHeader.id] = `${discountPercentage}%`;
+      console.log(`Saving discount of ${discountPercentage}% to column ${discountHeader.id}`);
+    } else {
+      console.warn("Could not find discount column in headers");
     }
-  };
+    
+    setEditingTransaction(updatedTransaction);
+  }
+};
+
+// Also modify handleRemoveDiscount to clear the discount field
+const handleRemoveDiscount = () => {
+  const totalAmountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('total') && 
+    h.label.toLowerCase().includes('amount')
+  );
+  
+  // Find service price and extra service price to recalculate total
+  const servicePriceHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('service price') && 
+    !h.label.toLowerCase().includes('extra')
+  );
+  
+  const extraServicePriceHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('extra service') && 
+    h.label.toLowerCase().includes('price')
+  );
+  
+  // Find the discount column
+  const discountHeader = tableHeaders.find(h => 
+    h.label.toLowerCase().includes('discount')
+  );
+  
+  if (totalAmountHeader) {
+    // Recalculate total from service prices
+    const servicePrice = parseFloat(editingTransaction[servicePriceHeader?.id] || 0) || 0;
+    const extraServicePrice = parseFloat(editingTransaction[extraServicePriceHeader?.id] || 0) || 0;
+    const newTotal = (servicePrice + extraServicePrice).toFixed(2);
+    
+    // Update the total without discount
+    const updatedTransaction = {
+      ...editingTransaction,
+      [totalAmountHeader.id]: newTotal
+    };
+    
+    // Clear the discount field
+    if (discountHeader) {
+      updatedTransaction[discountHeader.id] = "";
+    }
+    
+    // Remove the discount info
+    delete updatedTransaction._appliedDiscount;
+    
+    setEditingTransaction(updatedTransaction);
+    setSelectedPromo(null);
+    setDiscountAmount(0);
+  }
+};
 
   // Add function to close the discount form
   const handleCloseDiscountForm = () => {
@@ -741,42 +894,42 @@ const handleExtraServiceCheckboxChange = (service) => {
   };
 
   // Add function to remove applied discount
-  const handleRemoveDiscount = () => {
-    const totalAmountHeader = tableHeaders.find(h => 
-      h.label.toLowerCase().includes('total') && 
-      h.label.toLowerCase().includes('amount')
-    );
+  // const handleRemoveDiscount = () => {
+  //   const totalAmountHeader = tableHeaders.find(h => 
+  //     h.label.toLowerCase().includes('total') && 
+  //     h.label.toLowerCase().includes('amount')
+  //   );
     
-    // Find service price and extra service price to recalculate total
-    const servicePriceHeader = tableHeaders.find(h => 
-      h.label.toLowerCase().includes('service price') && 
-      !h.label.toLowerCase().includes('extra')
-    );
+  //   // Find service price and extra service price to recalculate total
+  //   const servicePriceHeader = tableHeaders.find(h => 
+  //     h.label.toLowerCase().includes('service price') && 
+  //     !h.label.toLowerCase().includes('extra')
+  //   );
     
-    const extraServicePriceHeader = tableHeaders.find(h => 
-      h.label.toLowerCase().includes('extra service price')
-    );
+  //   const extraServicePriceHeader = tableHeaders.find(h => 
+  //     h.label.toLowerCase().includes('extra service price')
+  //   );
     
-    if (totalAmountHeader) {
-      // Recalculate total from service prices
-      const servicePrice = parseFloat(editingTransaction[servicePriceHeader?.id] || 0) || 0;
-      const extraServicePrice = parseFloat(editingTransaction[extraServicePriceHeader?.id] || 0) || 0;
-      const newTotal = (servicePrice + extraServicePrice).toFixed(2);
+  //   if (totalAmountHeader) {
+  //     // Recalculate total from service prices
+  //     const servicePrice = parseFloat(editingTransaction[servicePriceHeader?.id] || 0) || 0;
+  //     const extraServicePrice = parseFloat(editingTransaction[extraServicePriceHeader?.id] || 0) || 0;
+  //     const newTotal = (servicePrice + extraServicePrice).toFixed(2);
       
-      // Update the total without discount
-      const updatedTransaction = {
-        ...editingTransaction,
-        [totalAmountHeader.id]: newTotal
-      };
+  //     // Update the total without discount
+  //     const updatedTransaction = {
+  //       ...editingTransaction,
+  //       [totalAmountHeader.id]: newTotal
+  //     };
       
-      // Remove the discount info
-      delete updatedTransaction._appliedDiscount;
+  //     // Remove the discount info
+  //     delete updatedTransaction._appliedDiscount;
       
-      setEditingTransaction(updatedTransaction);
-      setSelectedPromo(null);
-      setDiscountAmount(0);
-    }
-  };
+  //     setEditingTransaction(updatedTransaction);
+  //     setSelectedPromo(null);
+  //     setDiscountAmount(0);
+  //   }
+  // };
   
   // Modify the renderFormField function to handle the multi-select dropdown
   const renderFormField = (header) => {
