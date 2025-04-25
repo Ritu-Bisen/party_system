@@ -826,7 +826,7 @@ const ProfilePage = () => {
             <span className="mx-4 text-indigo-200 text-sm">Powered by Botivate</span>
             <div className="h-px w-16 bg-indigo-300/30"></div>
           </div>
-          <p className="mt-4 text-indigo-300/60 text-sm">© 2023 SalonPro. All rights reserved.</p>
+          <p className="mt-4 text-indigo-300/60 text-sm">© 2025 SalonPro. All rights reserved.</p>
         </div>
       </div>
 
