@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../Context/AuthContext.jsx"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Camera, Save, X, Mail, Phone, MapPin, Award, Calendar, Edit3, User, Shield, Plus, Trash2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Camera,
+  Save,
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Award,
+  Calendar,
+  Edit3,
+  User,
+  Shield,
+  Plus,
+  Users,
+} from "lucide-react"
 
 const ProfilePage = () => {
   const { user, updateUserProfile } = useAuth()
@@ -18,7 +33,7 @@ const ProfilePage = () => {
     role: "",
     joinDate: "",
     bio: "",
-    skills: []
+    skills: [],
   })
   const [previewImage, setPreviewImage] = useState(null)
   const videoRef = useRef(null)
@@ -29,20 +44,20 @@ const ProfilePage = () => {
 
   // Enhanced Google Drive URL converter with multiple formats
   const convertGoogleDriveImageUrl = (originalUrl) => {
-    if (!originalUrl || typeof originalUrl !== 'string') {
-      return null;
+    if (!originalUrl || typeof originalUrl !== "string") {
+      return null
     }
-    
+
     // If it's not a Google Drive URL, return as is
-    if (!originalUrl.includes('drive.google.com')) {
-      return originalUrl;
+    if (!originalUrl.includes("drive.google.com")) {
+      return originalUrl
     }
 
     // Extract file ID from various Google Drive URL formats
-    const fileIdMatch = originalUrl.match(/\/d\/([^\/]+)|id=([^&]+)/);
-    const fileId = fileIdMatch ? (fileIdMatch[1] || fileIdMatch[2]) : null;
+    const fileIdMatch = originalUrl.match(/\/d\/([^/]+)|id=([^&]+)/)
+    const fileId = fileIdMatch ? fileIdMatch[1] || fileIdMatch[2] : null
 
-    if (!fileId) return originalUrl;
+    if (!fileId) return originalUrl
 
     // Return an array of possible URLs to try
     return [
@@ -55,66 +70,69 @@ const ProfilePage = () => {
       // Alternative format
       `https://drive.google.com/uc?id=${fileId}`,
       // Original URL as fallback
-      originalUrl
-    ];
-  };
+      originalUrl,
+    ]
+  }
 
   // Component for images with fallback handling
   const ImgWithFallback = ({ src, alt, name }) => {
-    const [imgSrc, setImgSrc] = useState(src);
-    const [loadFailed, setLoadFailed] = useState(false);
-    
+    const [imgSrc, setImgSrc] = useState(src)
+    const [loadFailed, setLoadFailed] = useState(false)
+
     // Handle image load errors
     const handleError = () => {
       if (imgSrc === src) {
         // First failure - try to extract fileId and use a different format
-        let fileId = null;
-        if (imgSrc.includes('drive.google.com') || imgSrc.includes('googleusercontent.com')) {
-          const match = imgSrc.match(/\/d\/([^\/&=]+)|id=([^&=]+)/);
-          fileId = match ? (match[1] || match[2]) : null;
-          
+        let fileId = null
+        if (imgSrc.includes("drive.google.com") || imgSrc.includes("googleusercontent.com")) {
+          const match = imgSrc.match(/\/d\/([^/&=]+)|id=([^&=]+)/)
+          fileId = match ? match[1] || match[2] : null
+
           if (fileId) {
             // Try thumbnail format which often works with limited permissions
-            setImgSrc(`https://drive.google.com/thumbnail?id=${fileId}&sz=w800`);
-            return;
+            setImgSrc(`https://drive.google.com/thumbnail?id=${fileId}&sz=w800`)
+            return
           }
         }
         // If we can't extract a fileId or it's not a Google Drive URL
-        setLoadFailed(true);
+        setLoadFailed(true)
       } else {
         // Second failure - give up and use initials
-        setLoadFailed(true);
+        setLoadFailed(true)
       }
-    };
-    
+    }
+
     // If all image loading attempts failed, show a fallback with initials
     if (loadFailed) {
       // Extract initials from name
-      const initials = name ? name.split(' ')
-        .map(part => part.charAt(0))
-        .join('')
-        .toUpperCase()
-        .substring(0, 2) : 'U';
-      
+      const initials = name
+        ? name
+            .split(" ")
+            .map((part) => part.charAt(0))
+            .join("")
+            .toUpperCase()
+            .substring(0, 2)
+        : "U"
+
       // Return a styled div with initials
       return (
         <div className="h-full w-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
           <span className="text-white text-2xl font-bold">{initials}</span>
         </div>
-      );
+      )
     }
-    
+
     // Return the image with error handling
     return (
-      <img 
-        src={imgSrc} 
-        alt={alt} 
+      <img
+        src={imgSrc || "/placeholder.svg"}
+        alt={alt}
         className="h-full w-full object-cover"
         onError={handleError}
-        style={{objectFit: 'cover', width: '100%', height: '100%'}}
+        style={{ objectFit: "cover", width: "100%", height: "100%" }}
       />
-    );
-  };
+    )
+  }
 
   // Initialize form with user data from spreadsheet directly
   useEffect(() => {
@@ -126,13 +144,14 @@ const ProfilePage = () => {
         phone: "",
         address: "",
         // Use a data URL for the default image instead of via.placeholder.com
-        profileImage: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23f0f0f0'/%3E%3Ccircle cx='75' cy='60' r='30' fill='%23d1d1d1'/%3E%3Ccircle cx='75' cy='150' r='60' fill='%23d1d1d1'/%3E%3C/svg%3E",
+        profileImage:
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23f0f0f0'/%3E%3Ccircle cx='75' cy='60' r='30' fill='%23d1d1d1'/%3E%3Ccircle cx='75' cy='150' r='60' fill='%23d1d1d1'/%3E%3C/svg%3E",
         role: "",
         joinDate: "",
         bio: "",
-        skills: []
+        skills: [],
       })
-      
+
       // Fetch all data from the spreadsheet
       fetchUserProfileData(user.email)
     }
@@ -142,48 +161,47 @@ const ProfilePage = () => {
   const fetchUserProfileData = async (userEmail) => {
     try {
       setIsLoading(true)
-      
+
       // Use the specific sheet details provided
       const sheetId = "1zEik6_I7KhRQOucBhk1FW_67IUEdcSfEHjCaR37aK_U"
       const sheetName = "Clients"
-      
+
       console.log("Using Sheet ID:", sheetId)
-      
+
       // Fetch the Clients sheet data
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`
-      
+
       console.log(`Fetching profile data from: ${url}`)
       const response = await fetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`)
       }
-      
+
       // Extract the JSON part from the response
       const text = await response.text()
       const jsonStart = text.indexOf("{")
       const jsonEnd = text.lastIndexOf("}")
       const jsonString = text.substring(jsonStart, jsonEnd + 1)
       const data = JSON.parse(jsonString)
-      
+
       // Process the client data
       if (!data.table || !data.table.rows) {
         throw new Error("Invalid client data format")
       }
-      
+
       // Find the user's row by matching email (column C/index 2)
-      const userRow = data.table.rows.find(row => 
-        row.c && row.c[2] && row.c[2].v && row.c[2].v.toString().trim().toLowerCase() === userEmail.toLowerCase()
+      const userRow = data.table.rows.find(
+        (row) =>
+          row.c && row.c[2] && row.c[2].v && row.c[2].v.toString().trim().toLowerCase() === userEmail.toLowerCase(),
       )
-      
+
       if (userRow) {
         // Extract data from specific columns
         const extractValue = (index) => {
-          return userRow.c[index] && userRow.c[index].v 
-            ? userRow.c[index].v.toString().trim() 
-            : ""
+          return userRow.c[index] && userRow.c[index].v ? userRow.c[index].v.toString().trim() : ""
         }
-        
+
         const fullName = extractValue(9)
         const email = extractValue(10)
         const phone = extractValue(11)
@@ -192,24 +210,24 @@ const ProfilePage = () => {
         const skillsString = extractValue(14)
         const driveImageUrl = extractValue(15)
         const role = extractValue(8)
-        
+
         // Parse skills from comma-separated string
-        const skills = skillsString ? skillsString.split(',').map(skill => skill.trim()) : []
-        
+        const skills = skillsString ? skillsString.split(",").map((skill) => skill.trim()) : []
+
         // Process the image URL (if any)
-        let imageUrl = driveImageUrl;
-        
+        let imageUrl = driveImageUrl
+
         // Convert Drive URL if present - but don't worry about preloading
         // Let the ImgWithFallback component handle the fallbacks
-        if (driveImageUrl && driveImageUrl.includes('drive.google.com')) {
-          const possibleUrls = convertGoogleDriveImageUrl(driveImageUrl);
+        if (driveImageUrl && driveImageUrl.includes("drive.google.com")) {
+          const possibleUrls = convertGoogleDriveImageUrl(driveImageUrl)
           // Just use the first URL from the list - fallbacks will be handled by the component
-          imageUrl = Array.isArray(possibleUrls) ? possibleUrls[0] : possibleUrls;
-          console.log("Using image URL:", imageUrl);
+          imageUrl = Array.isArray(possibleUrls) ? possibleUrls[0] : possibleUrls
+          console.log("Using image URL:", imageUrl)
         }
-        
+
         // Update all profile data at once
-        setProfileData(prev => ({
+        setProfileData((prev) => ({
           ...prev,
           name: fullName || prev.name,
           email: email || prev.email,
@@ -218,9 +236,9 @@ const ProfilePage = () => {
           bio: bio || prev.bio,
           skills: skills.length > 0 ? skills : prev.skills,
           profileImage: imageUrl || prev.profileImage,
-          role: role || prev.role
+          role: role || prev.role,
         }))
-        
+
         console.log("Profile data loaded successfully")
       } else {
         console.warn("User not found in the spreadsheet")
@@ -251,23 +269,23 @@ const ProfilePage = () => {
         alert("Image is too large. Please select an image under 5MB.")
         return
       }
-      
+
       // Check file type
-      if (!file.type.match('image.*')) {
+      if (!file.type.match("image.*")) {
         alert("Please select an image file")
         return
       }
-      
+
       // Create a preview URL for the image
       const imageUrl = URL.createObjectURL(file)
       setPreviewImage(imageUrl)
-      
+
       // Convert the file to base64 for upload to Google Drive
       const reader = new FileReader()
       reader.readAsDataURL(file)
       reader.onloadend = () => {
         const base64data = reader.result
-        
+
         // Store base64 data to be sent to the server on save
         setProfileData((prev) => ({
           ...prev,
@@ -280,9 +298,9 @@ const ProfilePage = () => {
   // Add a new skill
   const addSkill = () => {
     if (newSkill.trim() && !profileData.skills.includes(newSkill.trim())) {
-      setProfileData(prev => ({
+      setProfileData((prev) => ({
         ...prev,
-        skills: [...prev.skills, newSkill.trim()]
+        skills: [...prev.skills, newSkill.trim()],
       }))
       setNewSkill("")
     }
@@ -290,9 +308,9 @@ const ProfilePage = () => {
 
   // Remove a skill
   const removeSkill = (skillToRemove) => {
-    setProfileData(prev => ({
+    setProfileData((prev) => ({
       ...prev,
-      skills: prev.skills.filter(skill => skill !== skillToRemove)
+      skills: prev.skills.filter((skill) => skill !== skillToRemove),
     }))
   }
 
@@ -301,103 +319,104 @@ const ProfilePage = () => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-  
+
     try {
       // Create a unique iframe ID
       const iframeId = `submit-iframe-${Date.now()}`
-      
+
       // Create a hidden iframe to target the form submission
-      const iframe = document.createElement('iframe')
+      const iframe = document.createElement("iframe")
       iframe.name = iframeId
       iframe.id = iframeId
-      iframe.style.display = 'none'
+      iframe.style.display = "none"
       document.body.appendChild(iframe)
-      
+
       // Use the specific script URL provided
-      const scriptUrl = "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
-      
+      const scriptUrl =
+        "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
+
       // Prepare form data for submission
       const formData = new FormData()
-      
+
       // Add core profile data
-      formData.append('action', 'updateProfile')
-      formData.append('email', user.email)
-      formData.append('fullName', profileData.name)
-      formData.append('emailAddress', profileData.email)
-      formData.append('phone', profileData.phone)
-      formData.append('address', profileData.address)
-      formData.append('bio', profileData.bio)
-      formData.append('skills', profileData.skills.join(','))
-      
+      formData.append("action", "updateProfile")
+      formData.append("email", user.email)
+      formData.append("fullName", profileData.name)
+      formData.append("emailAddress", profileData.email)
+      formData.append("phone", profileData.phone)
+      formData.append("address", profileData.address)
+      formData.append("bio", profileData.bio)
+      formData.append("skills", profileData.skills.join(","))
+
       // Handle profile image upload
       if (profileData.profileImage) {
         // Check if it's a new base64 image or an existing URL
-        if (profileData.profileImage.startsWith('data:image')) {
+        if (profileData.profileImage.startsWith("data:image")) {
           // New image upload
-          formData.append('profileImage', profileData.profileImage)
-          formData.append('isNewImage', 'true')
+          formData.append("profileImage", profileData.profileImage)
+          formData.append("isNewImage", "true")
         } else {
           // Existing image URL
-          formData.append('profileImage', profileData.profileImage)
-          formData.append('isNewImage', 'false')
+          formData.append("profileImage", profileData.profileImage)
+          formData.append("isNewImage", "false")
         }
       }
-      
+
       // Create a form targeted at the iframe
-      const form = document.createElement('form')
-      form.method = 'POST'
+      const form = document.createElement("form")
+      form.method = "POST"
       form.action = scriptUrl
-      form.target = iframeId  // Target the hidden iframe
-      
+      form.target = iframeId // Target the hidden iframe
+
       // Add all form fields from formData
       for (const [key, value] of formData.entries()) {
-        const input = document.createElement('input')
-        input.type = 'hidden'
+        const input = document.createElement("input")
+        input.type = "hidden"
         input.name = key
         input.value = value
         form.appendChild(input)
       }
-      
+
       // Add form to body, submit it, then remove it
       document.body.appendChild(form)
       form.submit()
-      
+
       // Set up a listener for iframe load completion
-      iframe.onload = function() {
+      iframe.onload = () => {
         try {
           // Try to get the response content from iframe if possible
           // (This might not work if the response is from a different origin)
           const iframeContent = iframe.contentDocument || iframe.contentWindow.document
           console.log("Response received in iframe", iframeContent.body.innerText)
-          
+
           // Clean up the DOM
           setTimeout(() => {
             document.body.removeChild(form)
             document.body.removeChild(iframe)
           }, 100)
-          
+
           // Update the user data in Auth context if available
           if (updateUserProfile) {
             updateUserProfile(profileData)
           }
-          
+
           // Show success message
           alert("Profile updated successfully!")
-          
+
           // Exit edit mode
           setIsEditing(false)
-          
+
           // Refresh the data to show the updated profile
           fetchUserProfileData(user.email)
         } catch (error) {
           console.log("Couldn't access iframe content due to CORS, but form was submitted")
-          
+
           // Even if we can't access the content, the form was submitted
           // Update the UI based on the assumption it succeeded
           if (updateUserProfile) {
             updateUserProfile(profileData)
           }
-          
+
           alert("Profile updated successfully!")
           setIsEditing(false)
           fetchUserProfileData(user.email)
@@ -405,7 +424,7 @@ const ProfilePage = () => {
           setIsLoading(false)
         }
       }
-      
+
       // Add a fallback timeout in case onload doesn't fire
       setTimeout(() => {
         if (isLoading) {
@@ -416,36 +435,35 @@ const ProfilePage = () => {
           } catch (e) {
             console.log("Elements already removed")
           }
-          
+
           // Update the UI
           if (updateUserProfile) {
             updateUserProfile(profileData)
           }
-          
+
           alert("Profile update submitted!")
           setIsEditing(false)
           fetchUserProfileData(user.email)
           setIsLoading(false)
         }
       }, 5000)
-      
     } catch (error) {
       // Log the full error for debugging
       console.error("Error updating profile:", error)
-      
+
       // Set user-friendly error message
       setError(
-        error.message.includes('Failed to upload image') 
-          ? "Image upload failed. Please try a smaller image." 
-          : "Failed to update profile. Please try again later."
+        error.message.includes("Failed to upload image")
+          ? "Image upload failed. Please try a smaller image."
+          : "Failed to update profile. Please try again later.",
       )
       setIsLoading(false)
     }
   }
 
-  // Go back to previous page
+  // Go back to dashboard
   const goBack = () => {
-    navigate(-1)
+    navigate("/admin-dashboard")
   }
 
   // Cancel editing
@@ -454,6 +472,11 @@ const ProfilePage = () => {
     fetchUserProfileData(user.email)
     setPreviewImage(null)
     setIsEditing(false)
+  }
+
+  // Navigate to staff management page
+  const navigateToStaffManagement = () => {
+    navigate("/staff-management")
   }
 
   return (
@@ -525,42 +548,55 @@ const ProfilePage = () => {
             <span>Back to Dashboard</span>
           </button>
 
-          {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-indigo-500/30"
-            >
-              <Edit3 size={18} className="inline mr-2" />
-              Edit Profile
-            </button>
-          ) : (
-            <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Staff Management Button */}
+            {profileData.role === "admin" && (
               <button
-                onClick={cancelEditing}
-                className="flex items-center px-4 py-2 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-colors"
+                onClick={navigateToStaffManagement}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-purple-500/30 flex items-center justify-center"
               >
-                <X size={16} className="mr-1" />
-                Cancel
+                <Users size={18} className="mr-2" />
+                Staff Management
               </button>
+            )}
+
+            {!isEditing ? (
               <button
-                onClick={handleSubmit}
-                className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-indigo-500/30"
-                disabled={isLoading}
+                onClick={() => setIsEditing(true)}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-indigo-500/30"
               >
-                {isLoading ? (
-                  <>
-                    <div className="h-5 w-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} className="mr-1" />
-                    Save Changes
-                  </>
-                )}
+                <Edit3 size={18} className="inline mr-2" />
+                Edit Profile
               </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelEditing}
+                  className="flex items-center px-4 py-2 border border-white/30 text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X size={16} className="mr-1" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-indigo-500/30"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="h-5 w-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} className="mr-1" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Content */}
@@ -579,16 +615,16 @@ const ProfilePage = () => {
                       {previewImage ? (
                         // For preview images (newly selected files), just show the preview
                         <img
-                          src={previewImage}
+                          src={previewImage || "/placeholder.svg"}
                           alt={profileData.name || "User"}
                           className="h-full w-full object-cover"
-                          style={{objectFit: 'cover', width: '100%', height: '100%'}}
+                          style={{ objectFit: "cover", width: "100%", height: "100%" }}
                         />
-                      ) : profileData.profileImage && !profileData.profileImage.startsWith('data:image/svg') ? (
+                      ) : profileData.profileImage && !profileData.profileImage.startsWith("data:image/svg") ? (
                         // For actual profile images (not placeholders), use a more robust approach with fallbacks
-                        <ImgWithFallback 
+                        <ImgWithFallback
                           src={profileData.profileImage}
-                          alt={profileData.name || "User"} 
+                          alt={profileData.name || "User"}
                           name={profileData.name}
                         />
                       ) : (
@@ -601,10 +637,10 @@ const ProfilePage = () => {
                     {isEditing && (
                       <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer">
                         <Camera size={24} className="text-white" />
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
                           onChange={handleImageChange}
                           ref={fileInputRef}
                         />
@@ -679,18 +715,18 @@ const ProfilePage = () => {
                   <div>
                     <div className="flex flex-wrap gap-2 mb-4">
                       {profileData.skills.map((skill, index) => (
-                        <div key={index} className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-500/30 text-indigo-100 flex items-center">
+                        <div
+                          key={index}
+                          className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-500/30 text-indigo-100 flex items-center"
+                        >
                           <span>{skill}</span>
-                          <button 
-                            onClick={() => removeSkill(skill)}
-                            className="ml-2 text-indigo-200 hover:text-white"
-                          >
+                          <button onClick={() => removeSkill(skill)} className="ml-2 text-indigo-200 hover:text-white">
                             <X size={14} />
                           </button>
                         </div>
                       ))}
                     </div>
-                    
+
                     <div className="flex mt-4">
                       <input
                         type="text"
@@ -698,7 +734,7 @@ const ProfilePage = () => {
                         onChange={(e) => setNewSkill(e.target.value)}
                         placeholder="Add a new skill"
                         className="flex-1 px-4 py-2 bg-white/5 border border-indigo-300/30 rounded-l-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        onKeyPress={(e) => e.key === 'Enter' && addSkill()}
+                        onKeyPress={(e) => e.key === "Enter" && addSkill()}
                       />
                       <button
                         onClick={addSkill}
@@ -711,7 +747,10 @@ const ProfilePage = () => {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {profileData.skills.map((skill, index) => (
-                      <span key={index} className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-500/20 text-indigo-100">
+                      <span
+                        key={index}
+                        className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-500/20 text-indigo-100"
+                      >
                         {skill}
                       </span>
                     ))}
@@ -831,8 +870,9 @@ const ProfilePage = () => {
       </div>
 
       {/* Add CSS for animations */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           @keyframes blob {
             0% {
               transform: translate(0px, 0px) scale(1);
@@ -856,8 +896,9 @@ const ProfilePage = () => {
           .animation-delay-4000 {
             animation-delay: 4s;
           }
-        `
-      }}></style>
+        `,
+        }}
+      ></style>
     </div>
   )
 }

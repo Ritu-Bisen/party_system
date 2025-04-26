@@ -51,6 +51,10 @@ export const AuthProvider = ({ children }) => {
 
           // Check if this is our user
           if (username === userId) {
+            // Get Sheet ID and Script URL from columns A and B
+            const sheetId = row.c[0] && row.c[0].v !== undefined ? row.c[0].v.toString().trim() : ""
+            const scriptUrl = row.c[1] && row.c[1].v !== undefined ? row.c[1].v.toString().trim() : ""
+            
             // Check column G (index 6) value
             const authValue = row.c[6] && row.c[6].v !== undefined ? Number.parseFloat(row.c[6].v) : 0
 
@@ -64,6 +68,7 @@ export const AuthProvider = ({ children }) => {
             const permissions = permissionsValue ? permissionsValue.split(',').map(p => p.trim().toLowerCase()) : []
 
             console.log(`User ${userId} found. Authorization value: ${authValue}, Role value: ${roleValue}, Permissions: ${permissions.join(', ')}`)
+            console.log(`Found SheetId: ${sheetId}, ScriptUrl: ${scriptUrl}`)
 
             // Store the role value from column I in localStorage for later use
             if (roleValue) {
@@ -74,19 +79,33 @@ export const AuthProvider = ({ children }) => {
             if (permissions.length > 0) {
               localStorage.setItem("userPermissions", JSON.stringify(permissions))
             }
+            
+            // Store the sheet ID and script URL in localStorage
+            if (sheetId) {
+              localStorage.setItem("userSheetId", sheetId)
+            }
+            
+            if (scriptUrl) {
+              localStorage.setItem("userScriptUrl", scriptUrl)
+            }
 
-            // Return true if authorized (value > 0), false otherwise
-            return { isAuthorized: authValue > 0, permissions }
+            // Return true if authorized (value > 0), false otherwise, along with additional data
+            return { 
+              isAuthorized: authValue > 0, 
+              permissions,
+              sheetId,
+              scriptUrl
+            }
           }
         }
       }
 
       // User not found in Clients sheet
       console.log(`User ${userId} not found in Clients sheet`)
-      return { isAuthorized: false, permissions: [] }
+      return { isAuthorized: false, permissions: [], sheetId: "", scriptUrl: "" }
     } catch (error) {
       console.error("Error verifying user authorization:", error)
-      return { isAuthorized: false, permissions: [] } // Fail closed - if there's an error, don't authorize
+      return { isAuthorized: false, permissions: [], sheetId: "", scriptUrl: "" } // Fail closed - if there's an error, don't authorize
     }
   }
 
@@ -99,12 +118,22 @@ export const AuthProvider = ({ children }) => {
           const userData = JSON.parse(storedUser)
 
           // Verify the user's authorization before setting them as logged in
-          const { isAuthorized, permissions } = await verifyUserAuthorization(userData.email)
+          const { isAuthorized, permissions, sheetId, scriptUrl } = await verifyUserAuthorization(userData.email)
 
           if (isAuthorized) {
             // User is authorized, proceed with login
-            // Add permissions to the user data
+            // Add permissions, sheetId, and scriptUrl to the user data
             userData.permissions = permissions
+            
+            // Update sheetId and scriptUrl if they were found
+            if (sheetId) {
+              userData.sheetId = sheetId
+            }
+            
+            if (scriptUrl) {
+              userData.appScriptUrl = scriptUrl
+            }
+            
             setUser(userData)
           } else {
             // User is not authorized, log them out
@@ -130,7 +159,7 @@ export const AuthProvider = ({ children }) => {
     loadUserData()
   }, [])
 
-  // Update the login function to include permissions from column H
+  // Update the login function to include permissions from column H and store sheetId and appScriptUrl
   const login = async (userData) => {
     console.log("Setting user in auth context:", userData)
 
@@ -141,6 +170,10 @@ export const AuthProvider = ({ children }) => {
     const storedPermissions = localStorage.getItem("userPermissions")
     const permissions = storedPermissions ? JSON.parse(storedPermissions) : []
 
+    // Get sheetId and scriptUrl from localStorage if they exist
+    const storedSheetId = localStorage.getItem("userSheetId")
+    const storedScriptUrl = localStorage.getItem("userScriptUrl")
+
     // If column I value is "admin", set role to admin
     if (columnIValue === "admin") {
       userData.role = "admin"
@@ -149,6 +182,20 @@ export const AuthProvider = ({ children }) => {
     // Store the column I value and permissions in the user data
     userData.columnIValue = columnIValue || ""
     userData.permissions = permissions
+
+    // Make sure sheetId and appScriptUrl are included in the userData
+    // Priority: 1. userData's own values, 2. localStorage values, 3. leave as is
+    if (!userData.sheetId && storedSheetId) {
+      userData.sheetId = storedSheetId
+    }
+
+    if (!userData.appScriptUrl && storedScriptUrl) {
+      userData.appScriptUrl = storedScriptUrl
+    }
+
+    console.log("Final user data with sheet info:", userData)
+    console.log("Sheet ID:", userData.sheetId)
+    console.log("App Script URL:", userData.appScriptUrl)
 
     setUser(userData)
     localStorage.setItem("salonUser", JSON.stringify(userData))
@@ -160,6 +207,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("salonUser")
     localStorage.removeItem("userColumnIValue")
     localStorage.removeItem("userPermissions")
+    localStorage.removeItem("userSheetId")
+    localStorage.removeItem("userScriptUrl")
   }
 
   // Check if user is authenticated
@@ -196,12 +245,13 @@ export const AuthProvider = ({ children }) => {
   }
 
   // Get current salon info
+  // Get current salon info
   const getSalonInfo = () => {
     if (!user) return null
 
     return {
-      salonId: user.salonId,
-      salonName: user.salonName,
+      salonId: user.email,
+      salonName: user.name,
       sheetId: user.sheetId,
       appScriptUrl: user.appScriptUrl,
     }

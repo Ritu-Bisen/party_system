@@ -13,19 +13,13 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [remember, setRemember] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  // State for password change alert
-  const [showPasswordChangeAlert, setShowPasswordChangeAlert] = useState(false)
-  // State to hold matched client data
   const [matchedClient, setMatchedClient] = useState(null)
 
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated()) {
-      // Always navigate to admin-dashboard
-      // The Dashboard component will handle showing the appropriate content based on role
       navigate("/admin-dashboard")
     }
   }, [isAuthenticated, navigate])
@@ -36,7 +30,14 @@ const LoginPage = () => {
   const initialScriptUrl =
     "https://script.google.com/macros/s/AKfycbz6-tMsYOC4lbu4XueMyMLccUryF9HkY7HZLC22FB9QeB5NxqCcxedWKS8drwgVwlM/exec"
 
-  // Update the handleSubmit function to check column H for permissions
+  // Staff positions with their corresponding columns
+  const staffPositions = [
+    { name: "Staff 1", usernameCol: 16, passwordCol: 17, roleCol: 18, permissionCol: 18, columns: "Q/R/S" },
+    { name: "Staff 2", usernameCol: 19, passwordCol: 20, roleCol: 21, permissionCol: 21, columns: "T/U/V" },
+    { name: "Staff 3", usernameCol: 22, passwordCol: 23, roleCol: 24, permissionCol: 24, columns: "W/X/Y" },
+    { name: "Staff 4", usernameCol: 25, passwordCol: 26, roleCol: 27, permissionCol: 27, columns: "Z/AA/AB" }
+  ]
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
@@ -50,13 +51,9 @@ const LoginPage = () => {
         return
       }
 
-      // Directly check the Clients sheet for username/password in columns C and D
-      console.log("Checking credentials in Clients sheet...")
-
       // Fetch the Clients sheet data
       const url = `https://docs.google.com/spreadsheets/d/${initialSheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(initialSheetName)}`
 
-      console.log(`Fetching from: ${url}`)
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`)
@@ -73,111 +70,146 @@ const LoginPage = () => {
       if (!data.table || !data.table.rows) {
         throw new Error("Invalid client data format")
       }
+      
+      let foundMatch = false
+      let matchedClient = null
+      let userRole = "staff"
+      let userPermissions = []
+      
+      // Helper function to extract cell value safely
+      const extractValue = (row, index) => {
+        return row.c && row.c[index] && row.c[index].v !== undefined ? 
+          row.c[index].v.toString().trim() : ""
+      }
 
-      // Extract client data with credentials from the sheet
-      // Column A (index 0) is sheet ID
-      // Column B (index 1) is script URL
-      // Column C (index 2) is username
-      // Column D (index 3) is password
-      // Column G (index 6) is now checked for a value > 0
-      // Column H (index 7) is checked for permissions
-      // Column I (index 8) is checked for role value
-      const clientData = data.table.rows
-        .filter((row) => row.c && row.c[0] && row.c[1] && row.c[2] && row.c[3])
-        .map((row) => ({
-          sheetId: row.c[0].v.toString().trim(),
-          scriptUrl: row.c[1].v.toString().trim(),
-          username: row.c[2].v.toString().trim(),
-          password: row.c[3].v.toString().trim(),
-          // Optionally extract role from column E (index 4) if it exists
-          role: row.c[4] && row.c[4].v ? row.c[4].v.toString().trim() : null,
-          // Get the value from column G (index 6) - for authorization check
-          authValue: row.c[6] && row.c[6].v !== undefined ? Number.parseFloat(row.c[6].v) : 0,
-          // Get the value from column H (index 7) - for permissions
-          permissionsValue: row.c[7] && row.c[7].v ? row.c[7].v.toString().trim() : "",
-          // Get the value from column I (index 8) - for role/filtering
-          columnIValue: row.c[8] && row.c[8].v ? row.c[8].v.toString().trim() : "",
-        }))
+      // Helper function to check authorization and date
+      const checkAuthorization = (row) => {
+        // Check authorization value in column G (index 6)
+        const authValue = row.c[6] && row.c[6].v !== undefined ? 
+          Number.parseFloat(row.c[6].v) : 0
 
-      console.log(`Found ${clientData.length} client records`)
-
-      // Check if credentials match
-      const clientMatch = clientData.find((client) => client.username === email && client.password === password)
-
-      if (clientMatch) {
-        console.log("Found matching credentials:", clientMatch)
-
-        // Check if the value in column G is greater than 0 for authorization
-        if (clientMatch.authValue > 0) {
-          console.log("Login authorized! Column G value:", clientMatch.authValue)
-          console.log("Column I value:", clientMatch.columnIValue)
-          console.log("Permissions (Column H):", clientMatch.permissionsValue)
-          setMatchedClient(clientMatch)
-
-          // Determine role based on column I value
-          let userRole = "staff" // Default role
-          if (clientMatch.columnIValue === "admin") {
-            userRole = "admin"
-          }
-
-          // Parse permissions from column H
-          const permissions = clientMatch.permissionsValue 
-            ? clientMatch.permissionsValue.split(',').map(p => p.trim().toLowerCase())
-            : []
-
-          // Store permissions in localStorage
-          localStorage.setItem("userPermissions", JSON.stringify(permissions))
-
-          // Continue with normal login flow using the matched client's sheet ID and script URL
-          proceedWithLogin(
-            {
-              id: clientMatch.username,
-              role: userRole,
-              columnIValue: clientMatch.columnIValue,
-              permissions: permissions
-            },
-            clientMatch.sheetId,
-            clientMatch.scriptUrl,
-          )
-        } else {
-          // Credentials match but not authorized (column G value <= 0)
-          console.log("Login failed: User account not authorized (Column G value <= 0)")
-
-          // Log the user in first so we can immediately log them out
-          // This creates a better user experience than simply showing an error
-          const tempUserData = {
-            email: clientMatch.username,
-            name: clientMatch.username.split("@")[0],
-            role: clientMatch.role || "staff",
-            staffName: clientMatch.username.split("@")[0],
-          }
-
-          // Log in temporarily
-          login(tempUserData, clientMatch.sheetId, clientMatch.scriptUrl)
-
-          // Set a timeout to automatically log out and show the error message
-          setTimeout(() => {
-            // Import the logout function if necessary
-            //Import at the top of the file: const { login, logout, isAuthenticated, user } = useAuth()
-
-            // Navigate to admin dashboard first (this will show briefly)
-            navigate("/admin-dashboard")
-
-            // Then show error and log out after a short delay
-            setTimeout(() => {
-              alert("Your account is not active. Please contact administrator.")
-              // Log the user out - this should be added to the useAuth export
-              logout()
-              // Redirect back to login page
-              navigate("/")
-            }, 500)
-          }, 100)
-
-          setIsLoading(false)
+        // Check authorization date in column L (index 11)
+        const authDateStr = extractValue(row, 11) // Column L for authorization date
+        
+        if (authValue <= 0) {
+          console.log("Authorization value is 0 or negative")
+          return false
         }
+
+        // If authorization date exists, check if it's still valid
+        if (authDateStr) {
+          const authDate = new Date(authDateStr)
+          const currentDate = new Date()
+          
+          if (authDate < currentDate) {
+            console.log("Authorization has expired")
+            return false
+          }
+        }
+
+        return true
+      }
+
+      // First, check admin credentials (columns C, D, H)
+      const adminRow = data.table.rows.find(row => {
+        const adminUsername = extractValue(row, 2) // Column C
+        const adminPassword = extractValue(row, 3) // Column D
+        return adminUsername === email && adminPassword === password
+      })
+
+      if (adminRow) {
+        // Validate admin authorization
+        if (!checkAuthorization(adminRow)) {
+          setError("Your admin access has been revoked or expired.")
+          setIsLoading(false)
+          return
+        }
+
+        // Get Sheet ID and Script URL from columns A and B
+        const clientSheetId = extractValue(adminRow, 0) // Column A for Sheet ID
+        const clientScriptUrl = extractValue(adminRow, 1) // Column B for Script URL
+        
+        // Admin login
+        const adminUsername = extractValue(adminRow, 2)
+        const adminPassword = extractValue(adminRow, 3)
+        const adminPermissions = extractValue(adminRow, 7) // Column H
+        const adminType = extractValue(adminRow, 8) // Column I
+
+        foundMatch = true
+        userRole = adminType === "admin" ? "admin" : "staff"
+        matchedClient = {
+          sheetId: clientSheetId || initialSheetId, // Use the client's Sheet ID or fall back to the default
+          scriptUrl: clientScriptUrl || initialScriptUrl, // Use the client's Script URL or fall back to the default
+          username: adminUsername,
+          password: adminPassword,
+          permissionsValue: adminPermissions,
+          columnIValue: adminType
+        }
+        userPermissions = adminPermissions ? 
+          adminPermissions.split(',').map(p => p.trim().toLowerCase()) : []
+      } 
+      else {
+        // Check staff credentials in multiple positions
+        for (const position of staffPositions) {
+          const staffRow = data.table.rows.find(row => {
+            const staffUsername = extractValue(row, position.usernameCol)
+            const staffPassword = extractValue(row, position.passwordCol)
+            return staffUsername === email && staffPassword === password
+          })
+
+          if (staffRow) {
+            // Validate staff authorization
+            if (!checkAuthorization(staffRow)) {
+              setError("Your staff access has been revoked or expired.")
+              setIsLoading(false)
+              return
+            }
+
+            // Get Sheet ID and Script URL from columns A and B
+            const clientSheetId = extractValue(staffRow, 0) // Column A for Sheet ID
+            const clientScriptUrl = extractValue(staffRow, 1) // Column B for Script URL
+
+            const staffUsername = extractValue(staffRow, position.usernameCol)
+            const staffPassword = extractValue(staffRow, position.passwordCol)
+            const staffPermissions = extractValue(staffRow, position.roleCol)
+            const staffType = extractValue(staffRow, position.roleCol)
+
+            foundMatch = true
+            userRole = staffType === "admin" ? "admin" : "staff"
+            matchedClient = {
+              sheetId: clientSheetId || initialSheetId, // Use the client's Sheet ID or fall back to the default
+              scriptUrl: clientScriptUrl || initialScriptUrl, // Use the client's Script URL or fall back to the default
+              username: staffUsername,
+              password: staffPassword,
+              permissionsValue: staffPermissions,
+              columnIValue: staffType,
+              staffPosition: position.name
+            }
+            userPermissions = staffPermissions ? 
+              staffPermissions.split(',').map(p => p.trim().toLowerCase()) : []
+            break
+          }
+        }
+      }
+
+      if (foundMatch && matchedClient) {
+        // Store permissions in localStorage
+        localStorage.setItem("userPermissions", JSON.stringify(userPermissions))
+
+        // Proceed with login
+        proceedWithLogin(
+          {
+            id: matchedClient.username,
+            role: userRole,
+            columnIValue: matchedClient.columnIValue || "",
+            permissions: userPermissions,
+            staffPosition: matchedClient.staffPosition || ""
+          },
+          matchedClient.sheetId,
+          matchedClient.scriptUrl
+        )
       } else {
         // No matching credentials found
-        console.log("Login failed: Invalid credentials")
         setError("Invalid email or password")
         setIsLoading(false)
       }
@@ -188,19 +220,13 @@ const LoginPage = () => {
     }
   }
 
-  // Update the proceedWithLogin function to include permissions
+  // Update the proceedWithLogin function to include sheetId and scriptUrl
   const proceedWithLogin = (userMatch, sheetId, scriptUrl) => {
-    setShowPasswordChangeAlert(false)
-
-    // Determine the role - If column I value is "admin" or has explicit role in spreadsheet
+    // Determine the role
     let userRole = "staff" // Default role
 
-    // Check if user is admin by column I value
+    // Check if user is admin
     if (userMatch?.columnIValue === "admin") {
-      userRole = "admin"
-    }
-    // Or check if role is specified in the spreadsheet
-    else if (userMatch?.role === "admin") {
       userRole = "admin"
     }
 
@@ -211,14 +237,16 @@ const LoginPage = () => {
     const userName = userId.split("@")[0]
 
     // Create user object with ALL required properties
-    // IMPORTANT: Explicitly set staffName to match what's in the booking sheet
     const userData = {
       email: userId,
       name: userName,
       role: userRole,
-      staffName: userName, // This is the critical line - setting staffName explicitly
-      columnIValue: userMatch?.columnIValue || "", // Store the column I value for filtering
-      permissions: userMatch?.permissions || [], // Store the permissions from column H
+      staffName: userName,
+      columnIValue: userMatch?.columnIValue || "",
+      permissions: userMatch?.permissions || [],
+      staffPosition: userMatch?.staffPosition || "",
+      sheetId: sheetId, // Add sheetId to user data
+      appScriptUrl: scriptUrl // Add scriptUrl to user data
     }
 
     // Add debug output
@@ -228,7 +256,7 @@ const LoginPage = () => {
     console.log("User permissions:", userData.permissions)
 
     // Log the user in with sheet data
-    login(userData, sheetId, scriptUrl)
+    login(userData)
 
     // Navigate to the appropriate dashboard with a small delay
     setTimeout(() => {
@@ -437,75 +465,6 @@ const LoginPage = () => {
           </div>
         </motion.div>
       </motion.div>
-
-      {/* Password Change Alert Modal */}
-      <AnimatePresence>
-        {showPasswordChangeAlert && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 m-4"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-indigo-100 p-2 rounded-full">
-                    <AlertCircle size={20} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Password Change Required</h3>
-                </div>
-                <button
-                  onClick={() => setShowPasswordChangeAlert(false)}
-                  className="text-gray-400 hover:text-gray-500 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="mb-6">
-                <p className="text-gray-600">
-                  Your password needs to be changed for security purposes. You'll be redirected to the dashboard now,
-                  but please change your password soon.
-                </p>
-              </div>
-              <div className="flex justify-end">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    // Use the matchedClient data that was stored when we found a match
-                    if (matchedClient) {
-                      proceedWithLogin(
-                        { 
-                          id: matchedClient.username, 
-                          role: matchedClient.role,
-                          permissions: matchedClient.permissionsValue 
-                            ? matchedClient.permissionsValue.split(',').map(p => p.trim().toLowerCase())
-                            : []
-                        },
-                        matchedClient.sheetId,
-                        matchedClient.scriptUrl,
-                      )
-                    } else {
-                      // Fallback if somehow matchedClient is not available
-                      setShowPasswordChangeAlert(false)
-                      setIsLoading(false)
-                    }
-                  }}
-                  className="inline-flex justify-center px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 border border-transparent rounded-lg shadow-sm hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-                >
-                  Continue to Dashboard
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

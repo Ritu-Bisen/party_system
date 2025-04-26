@@ -329,6 +329,7 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
             </button>
 
             {/* Profile Button with Profile Image - No Border */}
+            {user?.role === "admin" && (
             <button
   className="flex items-center space-x-2 p-0 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-300"
   onClick={navigateToProfile}
@@ -350,6 +351,7 @@ const Navbar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   </div>
   <span className="hidden sm:inline text-sm pr-2">Profile</span>
 </button>
+            )}
 
             {/* Logout Button - Text hidden on extra small screens */}
             <button
