@@ -1664,25 +1664,22 @@ const handleRemoveDiscount = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-auto"
+              className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-bold text-gray-800">Transaction History</h3>
-                  <button 
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setShowHistoryModal(false)}
-                  >
+                  <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowHistoryModal(false)}>
                     <X size={24} />
                   </button>
                 </div>
-                
+
                 <div className="mb-6">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -1695,7 +1692,7 @@ const handleRemoveDiscount = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -1724,54 +1721,56 @@ const handleRemoveDiscount = () => {
                           <tr key={`history-row-${transaction._id}`} className="hover:bg-gray-50">
                             {tableHeaders.map((header) => {
                               // Special handling for price/amount fields
-                              if ((header.label.toLowerCase().includes('amount') || 
-                                  header.label.toLowerCase().includes('price') || 
-                                  header.label.toLowerCase().includes('commission') || 
-                                  header.label.toLowerCase().includes('total')) && 
-                                  !header.label.toLowerCase().includes('serial') && 
-                                  !header.label.toLowerCase().includes('sr') && 
-                                  !header.label.toLowerCase().includes('no') && 
-                                  header.type !== 'string') {
+                              if (
+                                (header.label.toLowerCase().includes("amount") ||
+                                  header.label.toLowerCase().includes("price") ||
+                                  header.label.toLowerCase().includes("commission") ||
+                                  header.label.toLowerCase().includes("total")) &&
+                                !header.label.toLowerCase().includes("serial") &&
+                                !header.label.toLowerCase().includes("sr") &&
+                                !header.label.toLowerCase().includes("no") &&
+                                header.type !== "string"
+                              ) {
                                 const value = transaction[header.id]
                                 let displayValue = value
-                                
-                                if (!isNaN(parseFloat(value))) {
-                                  displayValue = '₹' + parseFloat(value).toFixed(2)
+
+                                if (!isNaN(Number.parseFloat(value))) {
+                                  displayValue = "₹" + Number.parseFloat(value).toFixed(2)
                                 }
-                                
+
                                 return (
                                   <td key={`history-cell-${header.id}`} className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-green-600">{displayValue || '—'}</div>
+                                    <div className="text-sm font-medium text-green-600">{displayValue || "—"}</div>
                                   </td>
                                 )
                               }
-                              
+
                               // For date fields
-                              if (header.type === 'date' || header.label.toLowerCase().includes('date')) {
+                              if (header.type === "date" || header.label.toLowerCase().includes("date")) {
                                 // Use our formatDateForDisplay helper for consistent formatting
                                 const displayDate = formatDateForDisplay(transaction[header.id])
-                                
+
                                 return (
                                   <td key={`history-cell-${header.id}`} className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-900">{displayDate}</div>
                                   </td>
                                 )
                               }
-                              
+
                               // Default rendering for other columns
                               return (
                                 <td key={`history-cell-${header.id}`} className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">{transaction[header.id] || '—'}</div>
+                                  <div className="text-sm text-gray-900">{transaction[header.id] || "—"}</div>
                                 </td>
                               )
                             })}
                             {/* Add Edit button to history items */}
                             <td key="history-actions-cell" className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button 
+                              <button
                                 className="text-pink-600 hover:text-pink-900"
                                 onClick={() => {
-                                  handleEditClick(transaction);
-                                  setShowHistoryModal(false);
+                                  handleEditClick(transaction)
+                                  setShowHistoryModal(false)
                                 }}
                               >
                                 <Edit size={16} className="inline mr-1" />
@@ -1783,14 +1782,16 @@ const handleRemoveDiscount = () => {
                       ) : (
                         <tr>
                           <td colSpan={tableHeaders.length + 1} className="px-6 py-4 text-center text-gray-500">
-                            {historySearchTerm ? "No transactions matching your search" : "No transaction history found"}
+                            {historySearchTerm
+                              ? "No transactions matching your search"
+                              : "No transaction history found"}
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-                
+
                 <div className="flex justify-end mt-6">
                   <button
                     type="button"
