@@ -17,6 +17,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Staff positions with their corresponding columns
+  const staffPositions = [
+    { name: "Staff 1", usernameCol: 16, passwordCol: 17, roleCol: 18, permissionCol: 18, columns: "Q/R/S" },
+    { name: "Staff 2", usernameCol: 19, passwordCol: 20, roleCol: 21, permissionCol: 21, columns: "T/U/V" },
+    { name: "Staff 3", usernameCol: 22, passwordCol: 23, roleCol: 24, permissionCol: 24, columns: "W/X/Y" },
+    { name: "Staff 4", usernameCol: 25, passwordCol: 26, roleCol: 27, permissionCol: 27, columns: "Z/AA/AB" }
+  ]
+
   // Update the verifyUserAuthorization function to also check column H for permissions
   const verifyUserAuthorization = async (userId) => {
     try {
@@ -44,41 +52,137 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Invalid client data format")
       }
 
-      // Find the user's row and check column G value, column I for role, and column H for permissions
+      // Helper function to extract cell value safely
+      const extractValue = (row, index) => {
+        return row.c && row.c[index] && row.c[index].v !== undefined ? 
+          row.c[index].v.toString().trim() : ""
+      }
+
+      // Helper function to check authorization and date
+      const checkAuthorization = (row) => {
+        // Check authorization value in column G (index 6)
+        const authValue = row.c[6] && row.c[6].v !== undefined ? 
+          Number.parseFloat(row.c[6].v) : 0
+
+        // Check authorization date in column L (index 11)
+        const authDateStr = extractValue(row, 11) // Column L for authorization date
+        
+        if (authValue <= 0) {
+          console.log("Authorization value is 0 or negative")
+          return false
+        }
+
+        // If authorization date exists, check if it's still valid
+        if (authDateStr) {
+          const authDate = new Date(authDateStr)
+          const currentDate = new Date()
+          
+          if (authDate < currentDate) {
+            console.log("Authorization has expired")
+            return false
+          }
+        }
+
+        return true
+      }
+
+      // First, check admin credentials (column C)
       for (const row of data.table.rows) {
-        if (row.c && row.c[2] && row.c[2].v) {
-          const username = row.c[2].v.toString().trim()
+        const adminUsername = extractValue(row, 2) // Column C
+        
+        // Check if this is our admin user
+        if (adminUsername === userId) {
+          // Check authorization
+          if (!checkAuthorization(row)) {
+            console.log(`Admin ${userId} not authorized (column G value <= 0 or expired)`)
+            return { isAuthorized: false, permissions: [], sheetId: "", scriptUrl: "" }
+          }
+          
+          // Get Sheet ID and Script URL from columns A and B
+          const sheetId = extractValue(row, 0) // Column A for Sheet ID
+          const scriptUrl = extractValue(row, 1) // Column B for Script URL
+          
+          // Check column I (index 8) for role
+          const roleValue = extractValue(row, 8) // Column I
+          
+          // Check column H (index 7) for permissions
+          const permissionsValue = extractValue(row, 7) // Column H
+          
+          // Parse comma-separated permissions list
+          const permissions = permissionsValue ? permissionsValue.split(',').map(p => p.trim().toLowerCase()) : []
 
-          // Check if this is our user
-          if (username === userId) {
+          console.log(`Admin ${userId} found. Authorization passed, Role value: ${roleValue}, Permissions: ${permissions.join(', ')}`)
+          console.log(`Found SheetId: ${sheetId}, ScriptUrl: ${scriptUrl}`)
+
+          // Store the role value from column I in localStorage for later use
+          if (roleValue) {
+            localStorage.setItem("userColumnIValue", roleValue)
+          }
+          
+          // Store the permissions from column H in localStorage
+          if (permissions.length > 0) {
+            localStorage.setItem("userPermissions", JSON.stringify(permissions))
+          }
+          
+          // Store the sheet ID and script URL in localStorage
+          if (sheetId) {
+            localStorage.setItem("userSheetId", sheetId)
+          }
+          
+          if (scriptUrl) {
+            localStorage.setItem("userScriptUrl", scriptUrl)
+          }
+
+          return { 
+            isAuthorized: true, 
+            permissions,
+            sheetId,
+            scriptUrl
+          }
+        }
+      }
+
+      // Then, check for staff users in each staff position
+      for (const position of staffPositions) {
+        for (const row of data.table.rows) {
+          const staffUsername = extractValue(row, position.usernameCol)
+          
+          // Check if this is our staff user
+          if (staffUsername === userId) {
+            // Check authorization
+            if (!checkAuthorization(row)) {
+              console.log(`Staff ${userId} not authorized (column G value <= 0 or expired)`)
+              return { isAuthorized: false, permissions: [], sheetId: "", scriptUrl: "" }
+            }
+            
             // Get Sheet ID and Script URL from columns A and B
-            const sheetId = row.c[0] && row.c[0].v !== undefined ? row.c[0].v.toString().trim() : ""
-            const scriptUrl = row.c[1] && row.c[1].v !== undefined ? row.c[1].v.toString().trim() : ""
+            const sheetId = extractValue(row, 0) // Column A for Sheet ID
+            const scriptUrl = extractValue(row, 1) // Column B for Script URL
             
-            // Check column G (index 6) value
-            const authValue = row.c[6] && row.c[6].v !== undefined ? Number.parseFloat(row.c[6].v) : 0
-
-            // Check column I (index 8) for role
-            const roleValue = row.c[8] && row.c[8].v !== undefined ? row.c[8].v.toString().trim() : ""
+            // Get role from the role column for this position
+            const roleValue = extractValue(row, position.roleCol)
             
-            // Check column H (index 7) for permissions
-            const permissionsValue = row.c[7] && row.c[7].v !== undefined ? row.c[7].v.toString().trim() : ""
+            // Get permissions from the permission column for this position
+            const permissionsValue = extractValue(row, position.permissionCol)
             
             // Parse comma-separated permissions list
             const permissions = permissionsValue ? permissionsValue.split(',').map(p => p.trim().toLowerCase()) : []
 
-            console.log(`User ${userId} found. Authorization value: ${authValue}, Role value: ${roleValue}, Permissions: ${permissions.join(', ')}`)
+            console.log(`Staff ${userId} found in position ${position.name}. Authorization passed, Role value: ${roleValue}, Permissions: ${permissions.join(', ')}`)
             console.log(`Found SheetId: ${sheetId}, ScriptUrl: ${scriptUrl}`)
 
-            // Store the role value from column I in localStorage for later use
+            // Store the role value in localStorage for later use
             if (roleValue) {
               localStorage.setItem("userColumnIValue", roleValue)
             }
             
-            // Store the permissions from column H in localStorage
+            // Store the permissions in localStorage
             if (permissions.length > 0) {
               localStorage.setItem("userPermissions", JSON.stringify(permissions))
             }
+            
+            // Store the staff position in localStorage
+            localStorage.setItem("userStaffPosition", position.name)
             
             // Store the sheet ID and script URL in localStorage
             if (sheetId) {
@@ -89,19 +193,19 @@ export const AuthProvider = ({ children }) => {
               localStorage.setItem("userScriptUrl", scriptUrl)
             }
 
-            // Return true if authorized (value > 0), false otherwise, along with additional data
             return { 
-              isAuthorized: authValue > 0, 
+              isAuthorized: true, 
               permissions,
               sheetId,
-              scriptUrl
+              scriptUrl,
+              staffPosition: position.name
             }
           }
         }
       }
 
-      // User not found in Clients sheet
-      console.log(`User ${userId} not found in Clients sheet`)
+      // User not found in any position
+      console.log(`User ${userId} not found in any position`)
       return { isAuthorized: false, permissions: [], sheetId: "", scriptUrl: "" }
     } catch (error) {
       console.error("Error verifying user authorization:", error)
@@ -118,7 +222,7 @@ export const AuthProvider = ({ children }) => {
           const userData = JSON.parse(storedUser)
 
           // Verify the user's authorization before setting them as logged in
-          const { isAuthorized, permissions, sheetId, scriptUrl } = await verifyUserAuthorization(userData.email)
+          const { isAuthorized, permissions, sheetId, scriptUrl, staffPosition } = await verifyUserAuthorization(userData.email)
 
           if (isAuthorized) {
             // User is authorized, proceed with login
@@ -132,6 +236,11 @@ export const AuthProvider = ({ children }) => {
             
             if (scriptUrl) {
               userData.appScriptUrl = scriptUrl
+            }
+
+            // Update staff position if found
+            if (staffPosition) {
+              userData.staffPosition = staffPosition
             }
             
             setUser(userData)
@@ -174,6 +283,9 @@ export const AuthProvider = ({ children }) => {
     const storedSheetId = localStorage.getItem("userSheetId")
     const storedScriptUrl = localStorage.getItem("userScriptUrl")
 
+    // Get staff position from localStorage if it exists
+    const storedStaffPosition = localStorage.getItem("userStaffPosition")
+
     // If column I value is "admin", set role to admin
     if (columnIValue === "admin") {
       userData.role = "admin"
@@ -193,9 +305,15 @@ export const AuthProvider = ({ children }) => {
       userData.appScriptUrl = storedScriptUrl
     }
 
+    // Make sure staff position is included if applicable
+    if (!userData.staffPosition && storedStaffPosition) {
+      userData.staffPosition = storedStaffPosition
+    }
+
     console.log("Final user data with sheet info:", userData)
     console.log("Sheet ID:", userData.sheetId)
     console.log("App Script URL:", userData.appScriptUrl)
+    console.log("Staff Position:", userData.staffPosition || "N/A")
 
     setUser(userData)
     localStorage.setItem("salonUser", JSON.stringify(userData))
@@ -209,6 +327,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("userPermissions")
     localStorage.removeItem("userSheetId")
     localStorage.removeItem("userScriptUrl")
+    localStorage.removeItem("userStaffPosition")
   }
 
   // Check if user is authenticated
@@ -244,7 +363,6 @@ export const AuthProvider = ({ children }) => {
     return user && user.staffName ? user.staffName : ""
   }
 
-  // Get current salon info
   // Get current salon info
   const getSalonInfo = () => {
     if (!user) return null
