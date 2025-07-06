@@ -73,7 +73,7 @@ export default function Hero() {
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="space-y-6 lg:space-y-10 order-2 lg:order-1"
+            className="space-y-6 lg:space-y-8 order-2 lg:order-1"
           >
             {/* Enhanced Badge */}
             <motion.div
@@ -86,13 +86,13 @@ export default function Hero() {
               <span className="text-sm sm:text-base text-gray-200 font-medium">Trusted by 500+ Companies</span>
             </motion.div>
 
-            {/* Enhanced Main Heading */}
+            {/* Enhanced Main Heading - FIXED SIZES */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 1 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 <span className="text-white">Transform Your</span>
                 <br />
                 <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
@@ -106,7 +106,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 1 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="text-lg sm:text-xl lg:text-2xl text-gray-300 leading-relaxed max-w-2xl"
+              className="text-base sm:text-lg lg:text-xl text-gray-300 leading-relaxed max-w-2xl"
             >
               Harness the power of AI automation to{" "}
               <span className="text-white font-semibold">streamline operations</span>,{" "}
@@ -124,7 +124,7 @@ export default function Hero() {
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-center space-x-2 sm:space-x-3">
                   <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
-                  <span className="text-base sm:text-lg text-gray-300">{benefit}</span>
+                  <span className="text-sm sm:text-base text-gray-300">{benefit}</span>
                 </div>
               ))}
             </motion.div>
@@ -138,7 +138,7 @@ export default function Hero() {
             >
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 sm:px-10 py-4 sm:py-6 text-lg sm:text-xl font-semibold group shadow-2xl w-full sm:w-auto"
+                className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold group shadow-2xl w-full sm:w-auto"
               >
                 Start Your Journey
                 <ArrowRight className="ml-2 sm:ml-3 w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform" />
@@ -150,7 +150,7 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 1 }}
               transition={{ duration: 0.8, delay: 1.0 }}
-              className="grid grid-cols-3 gap-4 sm:gap-8 pt-6 sm:pt-8"
+              className="grid grid-cols-3 gap-4 sm:gap-6 pt-6 sm:pt-8"
             >
               {[
                 { value: "500+", label: "Projects Delivered", color: "from-purple-400 to-pink-400" },
@@ -159,7 +159,7 @@ export default function Hero() {
               ].map((stat, index) => (
                 <div key={index} className="text-center">
                   <div
-                    className={`text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 sm:mb-2`}
+                    className={`text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 sm:mb-2`}
                   >
                     {stat.value}
                   </div>
@@ -169,7 +169,7 @@ export default function Hero() {
             </motion.div>
           </motion.div>
 
-          {/* Enhanced Right Content - 3D Model */}
+          {/* Enhanced Right Content - Image */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 1 }}
@@ -183,7 +183,6 @@ export default function Hero() {
               {/* Model Container */}
               <div className="relative z-10">
                 <ModelViewer
-                  url="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/ToyCar/glTF-Binary/ToyCar.glb"
                   autoRotate={true}
                   autoRotateSpeed={0.3}
                   environmentPreset="sunset"

@@ -8,11 +8,11 @@ import ProfileCard from "./ProfileCard"
 
 const teamMembers = [
   {
-    name: "Alex Rodriguez",
-    title: "AI Solutions Architect",
-    handle: "alexai",
+    name: "Vikas Choudhary",
+    title: "Software Engineer",
+    handle: "vikashchaudhari103",
     status: "Online",
-    avatarUrl: "/placeholder.svg?height=300&width=300",
+    avatarUrl: "./src/components/images/ChatGPT_Image_Mar_30__2025__10_12_12_AM-removebg-preview.png",
     contactText: "Contact Me",
   },
   {

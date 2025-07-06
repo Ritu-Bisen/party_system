@@ -3,10 +3,10 @@
 import { useEffect, useRef, useCallback } from "react"
 
 const ProfileCard = ({
-  avatarUrl = "/placeholder.svg?height=400&width=300",
-  name = "Javi A. Torres",
+  avatarUrl = "./src/components/images/ChatGPT_Image_Mar_30__2025__10_12_12_AM-removebg-preview.png",
+  name = "Vikas Choudhary",
   title = "Software Engineer",
-  handle = "javicodes",
+  handle = "vikashchaudhari103",
   status = "Online",
   contactText = "Contact Me",
   onContactClick,
@@ -99,14 +99,17 @@ const ProfileCard = ({
                 <img
                   src={avatarUrl || "/placeholder.svg"}
                   alt={name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-center"
                   style={{
-                    filter: "grayscale(10%) contrast(1.1) brightness(1.1)",
+                    filter: "contrast(1.1) brightness(1.1)",
+                  }}
+                  onError={(e) => {
+                    e.target.src = "/placeholder.svg?height=300&width=300"
                   }}
                 />
               </div>
               {/* Avatar Glow */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent rounded-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-2xl" />
             </div>
           </div>
 
@@ -119,13 +122,21 @@ const ProfileCard = ({
                 border: "1px solid rgba(148, 163, 184, 0.15)",
               }}
             >
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20">
-                  <img src={avatarUrl || "/placeholder.svg"} alt={name} className="w-full h-full object-cover" />
+              <div className="flex items-center space-x-4 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 flex-shrink-0">
+                  <img
+                    src={avatarUrl || "/placeholder.svg"}
+                    alt={name}
+                    className="w-full h-full object-cover object-center"
+                    onError={(e) => {
+                      e.target.src = "/placeholder.svg?height=300&width=300"
+                    }}
+                  />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-white text-base font-semibold">@{handle}</p>
-                  <div className="flex items-center space-x-2">
+                  {/* <p className="text-gray-400 text-sm truncate">vikashchaudhari103@gmail.com</p> */}
+                  <div className="flex items-center space-x-2 mt-1">
                     <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: statusColor }} />
                     <p className="text-sm font-medium" style={{ color: statusColor }}>
                       {status}
@@ -135,7 +146,7 @@ const ProfileCard = ({
               </div>
               <button
                 onClick={onContactClick}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white text-sm font-semibold rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white text-sm font-semibold rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-shadow-lg flex-shrink-0 ml-4"
               >
                 {contactText}
               </button>
