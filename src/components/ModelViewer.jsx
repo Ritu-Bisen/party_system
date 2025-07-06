@@ -1,82 +1,184 @@
 "use client"
 
-import { Suspense, useRef, useEffect, useMemo } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { OrbitControls, useGLTF, useProgress, Html, Environment, ContactShadows } from "@react-three/drei"
-import * as THREE from "three"
+import { useState, useRef, useEffect } from "react"
 
-const Loader = () => {
-  const { progress, active } = useProgress()
+// Simple Video Viewer Component with Infinite Loop - Fully Responsive
+const VideoViewer = ({ showScreenshotButton = false }) => {
+  const videoRef = useRef(null)
+  const containerRef = useRef(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleLoadedData = () => {
+      setIsLoading(false)
+      // Auto-play the video when loaded
+      video.play().catch((err) => {
+        console.log("Autoplay failed:", err)
+        setIsPlaying(false)
+      })
+    }
+
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
+    const handleError = () => {
+      setError(true)
+      setIsLoading(false)
+    }
+
+    // Ensure infinite loop
+    const handleEnded = () => {
+      video.currentTime = 0
+      video.play().catch((err) => {
+        console.log("Loop restart failed:", err)
+      })
+    }
+
+    // Add event listeners
+    video.addEventListener("loadeddata", handleLoadedData)
+    video.addEventListener("play", handlePlay)
+    video.addEventListener("pause", handlePause)
+    video.addEventListener("error", handleError)
+    video.addEventListener("ended", handleEnded)
+
+    // Ensure video properties are set
+    video.loop = true
+    video.muted = true
+    video.playsInline = true
+    video.autoplay = true
+
+    return () => {
+      video.removeEventListener("loadeddata", handleLoadedData)
+      video.removeEventListener("play", handlePlay)
+      video.removeEventListener("pause", handlePause)
+      video.removeEventListener("error", handleError)
+      video.removeEventListener("ended", handleEnded)
+    }
+  }, [])
+
+  const togglePlayPause = () => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (video.paused) {
+      video.play().catch((err) => {
+        console.log("Play failed:", err)
+      })
+    } else {
+      video.pause()
+    }
+  }
+
+  const takeScreenshot = () => {
+    const video = videoRef.current
+    if (!video) return
+
+    const canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext("2d")
+    ctx.drawImage(video, 0, 0)
+
+    const link = document.createElement("a")
+    link.download = "conference-room-screenshot.png"
+    link.href = canvas.toDataURL()
+    link.click()
+  }
+
+  if (error) {
+    return (
+      <div className="w-full aspect-square max-w-lg mx-auto flex items-center justify-center bg-gradient-to-br from-purple-900/10 to-cyan-900/10 rounded-2xl border border-white/10">
+        <div className="text-white text-center p-4">
+          <p className="text-sm sm:text-base">Unable to load video</p>
+          <p className="text-xs sm:text-sm opacity-70 mt-1">Please check your connection</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <Html center>
-      <div
-        style={{
-          color: "white",
-          fontSize: "16px",
-          fontWeight: "600",
-          textAlign: "center",
-          padding: "12px 20px",
-          background: "rgba(0,0,0,0.7)",
-          borderRadius: "8px",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}
+    <div
+      ref={containerRef}
+      className="w-full aspect-square max-w-lg mx-auto relative rounded-2xl overflow-hidden bg-gradient-to-br from-purple-900/5 to-cyan-900/5 border border-white/10 cursor-pointer shadow-2xl shadow-purple-500/20"
+      onClick={togglePlayPause}
+    >
+      {/* Video Element with Infinite Loop */}
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover rounded-2xl"
+        loop={true}
+        muted={true}
+        playsInline={true}
+        autoPlay={true}
+        preload="auto"
+        webkit-playsinline="true"
       >
-        {active ? `Loading ${Math.round(progress)}%` : "Ready"}
+        <source
+          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Firefly%20i%20want%20a%20video%20of%20a%20coference%20room%20with%20people%20sitting%20and%20working%20together.%20i%20want%20video%20in-mLPWKZ7wA3WAgULmVNO5e4g2l2hUdl.mp4"
+          type="video/mp4"
+        />
+        Your browser does not support the video tag.
+      </video>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl">
+          <div className="text-white text-sm sm:text-base font-medium p-3 sm:p-4 bg-black/80 rounded-lg border border-white/10 flex items-center gap-2 sm:gap-3">
+            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span>Loading Conference Video...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Play/Pause Overlay - Only shows when paused */}
+      {!isLoading && !isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-all duration-300 rounded-2xl">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/90 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 shadow-lg">
+            <div className="w-0 h-0 border-l-[12px] sm:border-l-[16px] border-l-gray-800 border-t-[8px] sm:border-t-[10px] border-t-transparent border-b-[8px] sm:border-b-[10px] border-b-transparent ml-1" />
+          </div>
+        </div>
+      )}
+
+      {/* Controls Overlay */}
+      <div className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 flex gap-2">
+        {showScreenshotButton && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              takeScreenshot()
+            }}
+            className="bg-black/70 text-white border border-white/20 rounded px-2 sm:px-3 py-1 sm:py-2 cursor-pointer text-xs sm:text-sm backdrop-blur-sm hover:bg-black/80 transition-colors"
+          >
+            📸 Screenshot
+          </button>
+        )}
+
+        <div className="bg-black/70 text-white rounded px-2 sm:px-3 py-1 text-xs backdrop-blur-sm border border-white/10">
+          {/* Status indicator can be added here if needed */}
+        </div>
       </div>
-    </Html>
+    </div>
   )
 }
 
-function Model({ url, autoRotate = false, autoRotateSpeed = 0.5 }) {
-  const { scene } = useGLTF(url)
-  const modelRef = useRef()
-
-  const clonedScene = useMemo(() => {
-    const clone = scene.clone()
-
-    // Center and scale the model optimally
-    const box = new THREE.Box3().setFromObject(clone)
-    const center = box.getCenter(new THREE.Vector3())
-    const size = box.getSize(new THREE.Vector3())
-    const maxDim = Math.max(size.x, size.y, size.z)
-    const scale = 4.5 / maxDim // Slightly larger scale
-
-    clone.position.sub(center)
-    clone.scale.setScalar(scale)
-
-    // Optimize materials for performance
-    clone.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-        if (child.material) {
-          // Optimize material for better performance
-          child.material.needsUpdate = true
-          if (child.material.map) {
-            child.material.map.generateMipmaps = false
-          }
-        }
-      }
-    })
-
-    return clone
-  }, [scene])
-
-  useFrame((state, delta) => {
-    if (autoRotate && modelRef.current) {
-      modelRef.current.rotation.y += autoRotateSpeed * delta
+// Add CSS animation for loading spinner
+if (typeof document !== "undefined") {
+  const style = document.createElement("style")
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
-  })
-
-  return <primitive ref={modelRef} object={clonedScene} />
+  `
+  document.head.appendChild(style)
 }
 
 const ModelViewer = ({
   url,
-  width = 400,
-  height = 400,
   autoRotate = false,
   autoRotateSpeed = 0.5,
   environmentPreset = "sunset",
@@ -85,137 +187,8 @@ const ModelViewer = ({
   ambientIntensity = 0.4,
   directionalIntensity = 1,
 }) => {
-  const canvasRef = useRef()
-
-  useEffect(() => {
-    // Preload the model
-    useGLTF.preload(url)
-  }, [url])
-
-  const takeScreenshot = () => {
-    if (canvasRef.current) {
-      const canvas = canvasRef.current.querySelector("canvas")
-      if (canvas) {
-        const link = document.createElement("a")
-        link.download = "model-screenshot.png"
-        link.href = canvas.toDataURL()
-        link.click()
-      }
-    }
-  }
-
-  return (
-    <div
-      ref={canvasRef}
-      style={{
-        width,
-        height,
-        position: "relative",
-        borderRadius: "20px",
-        overflow: "hidden",
-        background: "linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(6, 182, 212, 0.08))",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-      }}
-    >
-      {showScreenshotButton && (
-        <button
-          onClick={takeScreenshot}
-          style={{
-            position: "absolute",
-            top: "16px",
-            right: "16px",
-            zIndex: 10,
-            background: "rgba(0, 0, 0, 0.7)",
-            color: "white",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: "8px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontSize: "14px",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          📸 Screenshot
-        </button>
-      )}
-
-      <Canvas
-        shadows
-        camera={{
-          fov: 35,
-          position: [6, 4, 8], // Fixed optimal position
-          near: 0.1,
-          far: 1000,
-        }}
-        gl={{
-          preserveDrawingBuffer: true,
-          antialias: true,
-          alpha: true,
-          powerPreference: "high-performance", // Performance optimization
-          toneMapping: THREE.ACESFilmicToneMapping,
-          outputColorSpace: THREE.SRGBColorSpace,
-        }}
-        style={{
-          width: "100%",
-          height: "100%",
-          background: "transparent",
-        }}
-        performance={{ min: 0.8 }} // Performance optimization
-      >
-        {/* Optimized Lighting */}
-        <ambientLight intensity={ambientIntensity} />
-        <directionalLight
-          position={[10, 10, 5]}
-          intensity={directionalIntensity}
-          castShadow
-          shadow-mapSize-width={1024} // Reduced for performance
-          shadow-mapSize-height={1024}
-          shadow-camera-far={50}
-          shadow-camera-left={-10}
-          shadow-camera-right={10}
-          shadow-camera-top={10}
-          shadow-camera-bottom={-10}
-        />
-        <directionalLight position={[-10, 5, 5]} intensity={0.2} />
-
-        {/* Environment with reduced quality for performance */}
-        {environmentPreset && <Environment preset={environmentPreset} background={false} blur={0.6} />}
-
-        {/* Optimized Ground shadow */}
-        <ContactShadows
-          position={[0, -1.5, 0]}
-          opacity={0.3}
-          scale={8}
-          blur={1.5}
-          far={3}
-          resolution={256} // Reduced for performance
-        />
-
-        {/* Model */}
-        <Suspense fallback={<Loader />}>
-          <Model url={url} autoRotate={autoRotate} autoRotateSpeed={autoRotateSpeed} />
-        </Suspense>
-
-        {/* Optimized Controls - NO ZOOM */}
-        {enableControls && (
-          <OrbitControls
-            enablePan={false}
-            enableZoom={false} // DISABLED ZOOM
-            enableRotate={true}
-            minDistance={8} // Fixed distance
-            maxDistance={8} // Fixed distance
-            autoRotate={false}
-            autoRotateSpeed={0}
-            dampingFactor={0.05}
-            enableDamping={true}
-            target={[0, 0, 0]}
-            minPolarAngle={Math.PI / 3} // Limit vertical rotation
-            maxPolarAngle={Math.PI / 1.5}
-          />
-        )}
-      </Canvas>
-    </div>
-  )
+  // Return the responsive VideoViewer
+  return <VideoViewer showScreenshotButton={showScreenshotButton} />
 }
 
 export default ModelViewer

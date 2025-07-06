@@ -36,7 +36,7 @@ export default function Navbar() {
       }`}
     >
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2 cursor-pointer">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-lg flex items-center justify-center">
@@ -55,9 +55,10 @@ export default function Navbar() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
                 whileHover={{ scale: 1.05 }}
-                className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                className="text-gray-300 hover:text-white transition-colors duration-200 font-medium relative group"
               >
                 {item.name}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-400 to-cyan-400 group-hover:w-full transition-all duration-300"></span>
               </motion.a>
             ))}
           </div>
@@ -71,7 +72,7 @@ export default function Navbar() {
           >
             <Button
               size="sm"
-              className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 py-2 font-semibold transition-all duration-200"
+              className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 py-2 font-semibold transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
             >
               Get Started
             </Button>
@@ -81,7 +82,7 @@ export default function Navbar() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-white p-2"
+            className="md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </motion.button>
@@ -103,7 +104,7 @@ export default function Navbar() {
                 animate={isOpen ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
                 transition={{ duration: 0.3, delay: index * 0.1 }}
                 onClick={() => setIsOpen(false)}
-                className="block text-gray-300 hover:text-white transition-colors duration-200 font-medium px-4 py-2"
+                className="block text-gray-300 hover:text-white transition-colors duration-200 font-medium px-4 py-2 hover:bg-white/5 rounded-lg"
               >
                 {item.name}
               </motion.a>
@@ -111,7 +112,7 @@ export default function Navbar() {
             <div className="px-4 pt-2">
               <Button
                 size="sm"
-                className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-semibold"
+                className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-semibold hover:scale-105 transition-all duration-200"
               >
                 Get Started
               </Button>
