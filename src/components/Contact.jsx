@@ -5,6 +5,7 @@ import { useInView } from "react-intersection-observer"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRef } from "react"
 import ProfileCard from "./ProfileCard"
+import vikasImage from "../components/images/vikas.png"
 
 const teamMembers = [
   {
@@ -12,7 +13,7 @@ const teamMembers = [
     title: "Software Engineer",
     handle: "vikashchaudhari103",
     status: "Online",
-    avatarUrl: "./src/components/images/ChatGPT_Image_Mar_30__2025__10_12_12_AM-removebg-preview.png",
+    avatarUrl: vikasImage,
     contactText: "Contact Me",
   },
   {
