@@ -1,5 +1,4 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Button from "./ui/Button"
@@ -21,8 +20,8 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Enhanced Background */}
-      <div className="absolute inset-0">
+      {/* Enhanced Background Overlay */}
+      <div className="absolute inset-0 z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-black to-cyan-900/30" />
         <div
           className="absolute inset-0 opacity-40"
@@ -66,7 +65,7 @@ export default function Hero() {
         <div className="w-3 h-3 sm:w-4 sm:h-4 bg-cyan-400 rounded-full blur-sm" />
       </motion.div>
 
-      <div className="container mx-auto px-4 pt-20 pb-10">
+      <div className="container mx-auto px-4 pt-20 pb-10 relative z-10">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           {/* Left Content */}
           <motion.div
@@ -86,10 +85,10 @@ export default function Hero() {
               <span className="text-sm sm:text-base text-gray-200 font-medium">Trusted by 500+ Companies</span>
             </motion.div>
 
-            {/* Enhanced Main Heading - FIXED SIZES */}
+            {/* Enhanced Main Heading */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 1 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
@@ -104,7 +103,7 @@ export default function Hero() {
             {/* Enhanced Subtitle */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 1 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.5 }}
               className="text-base sm:text-lg lg:text-xl text-gray-300 leading-relaxed max-w-2xl"
             >
@@ -117,7 +116,7 @@ export default function Hero() {
             {/* Benefits List */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 1 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
               className="space-y-3 sm:space-y-4"
             >
@@ -132,7 +131,7 @@ export default function Hero() {
             {/* Enhanced CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 1 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.8 }}
               className="flex flex-col sm:flex-row gap-4 sm:gap-6"
             >
@@ -148,7 +147,7 @@ export default function Hero() {
             {/* Enhanced Stats */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 1 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 1.0 }}
               className="grid grid-cols-3 gap-4 sm:gap-6 pt-6 sm:pt-8"
             >
@@ -172,14 +171,13 @@ export default function Hero() {
           {/* Enhanced Right Content - Image */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 1 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             className="relative flex justify-center order-1 lg:order-2"
           >
             <div className="relative w-full max-w-lg">
               {/* Enhanced Glow Effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 to-cyan-600/40 rounded-full blur-3xl scale-150 animate-pulse" />
-
               {/* Model Container */}
               <div className="relative z-10">
                 <ModelViewer
@@ -196,26 +194,6 @@ export default function Hero() {
           </motion.div>
         </div>
       </div>
-
-      {/* Enhanced Scroll Indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5 }}
-        className="absolute bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2"
-      >
-        <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-          className="w-6 h-10 sm:w-8 sm:h-12 border-2 border-white/40 rounded-full flex justify-center"
-        >
-          <motion.div
-            animate={{ y: [0, 16, 0] }}
-            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
-            className="w-1 h-3 sm:w-1.5 sm:h-4 bg-white/70 rounded-full mt-2 sm:mt-3"
-          />
-        </motion.div>
-      </motion.div>
     </section>
   )
 }

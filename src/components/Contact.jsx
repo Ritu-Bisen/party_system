@@ -6,30 +6,32 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useRef } from "react"
 import ProfileCard from "./ProfileCard"
 import vikasImage from "../components/images/vikas.png"
+import chetanImage from "../components/images/chetan.png"
+import satyendraImage from "../components/images/satyendra.png"
 
 const teamMembers = [
   {
-    name: "Vikas Choudhary",
-    title: "Software Engineer",
-    handle: "vikashchaudhari103",
+    name: "Satyendra Tandan",
+    title: "Founder",
+    handle: "satyendra",
     status: "Online",
-    avatarUrl: vikasImage,
+    avatarUrl: satyendraImage,
     contactText: "Contact Me",
   },
   {
-    name: "Sarah Chen",
-    title: "Automation Specialist",
-    handle: "sarahtech",
-    status: "Available",
-    avatarUrl: "/placeholder.svg?height=300&width=300",
+    name: "Chetan Sahu",
+    title: "Manager",
+    handle: "chetansahu",
+    status: "Online",
+    avatarUrl: chetanImage,
     contactText: "Get in Touch",
   },
   {
     name: "Marcus Johnson",
-    title: "Process Optimization Expert",
-    handle: "marcusopt",
+    title: "Software engineer",
+    handle: "vikas",
     status: "Online",
-    avatarUrl: "/placeholder.svg?height=300&width=300",
+    avatarUrl: vikasImage,
     contactText: "Schedule Call",
   },
   {
