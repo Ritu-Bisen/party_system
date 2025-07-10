@@ -9,7 +9,7 @@ import Features from "./components/Features"
 import ParallaxSection from "./components/parallalSection"
 import ReadyToStart from "./components/readyToStart"
 import Footer from "./components/footer"
-import WhatsAppChat from "./components/WhatsAppChat"
+import WhatsAppChat from "./components/WhatsappChat"
 
 function App() {
   return (
