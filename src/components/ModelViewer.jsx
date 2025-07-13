@@ -138,7 +138,7 @@ export default function ModelViewer({
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-white font-semibold text-lg mb-1">Live Technology</h3>
+              {/* <h3 className="text-white font-semibold text-lg mb-1">Live Technology</h3> */}
               <p className="text-gray-300 text-sm">AI-Powered Business Solutions</p>
             </div>
             {/* <button
@@ -152,12 +152,12 @@ export default function ModelViewer({
         </motion.div>
 
         {/* Status Badge */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+        {/* <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
           <div className="flex items-center space-x-2 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             <span className="text-green-400 text-xs font-medium">LIVE DEMO</span>
           </div>
-        </div>
+        </div> */}
       </motion.div>
 
       {/* Glow Effect */}

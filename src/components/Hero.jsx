@@ -19,7 +19,7 @@ export default function Hero() {
   const benefits = ["500+ Successful Implementations", "98% Client Satisfaction Rate", "24/7 Expert Support"]
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pb-8 sm:pb-0">
       {/* Enhanced Background Overlay */}
       <div className="absolute inset-0 z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-black to-cyan-900/30" />
@@ -65,7 +65,7 @@ export default function Hero() {
         <div className="w-3 h-3 sm:w-4 sm:h-4 bg-cyan-400 rounded-full blur-sm" />
       </motion.div>
 
-      <div className="container mx-auto px-4 pt-20 pb-10 relative z-10">
+      <div className="container mx-auto px-4 pt-20 pb-4 sm:pb-10 relative z-10">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           {/* Left Content */}
           <motion.div
