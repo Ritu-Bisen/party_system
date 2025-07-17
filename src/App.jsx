@@ -13,6 +13,7 @@ import Footer from "./components/footer"
 import WhatsAppChat from "./components/WhatsappChat"
 import Product from "./components/products"
 import ProductsPage from "./components/ProductPage"
+import ProblemSolution from "./components/ProblemSolution"
 
 function App() {
   const [currentPage, setCurrentPage] = useState("home")
@@ -44,6 +45,11 @@ function App() {
       <main>
         <section id="home" className="relative z-10">
           <Hero />
+        </section>
+
+        {/* Add the new Problem Solution section */}
+        <section className="relative z-10">
+          <ProblemSolution />
         </section>
 
         {/* Parallax Section - Isolated with reduced mobile spacing */}

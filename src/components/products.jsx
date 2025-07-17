@@ -17,7 +17,7 @@ const products = [
     description:
       "Custom mobile applications for iOS and Android with cutting-edge features and seamless user experience.",
     color: "from-purple-500 to-pink-500",
-    image: Checklist,
+    // image: Checklist,
     features: ["iOS & Android", "Cross-platform", "Native Performance", "App Store Ready"],
     price: "Starting from $5,000",
     rating: 4.9,
@@ -123,13 +123,13 @@ const ProductCard = ({ product, index, isPartiallyHidden = false, onClick }) => 
         />
 
         {/* Product Image */}
-        <div className="relative h-48 overflow-hidden">
-          <img
+        <div className="relative h-10 overflow-hidden">
+          {/* <img
             src={product.image || "/placeholder.svg"}
             alt={product.title}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             style={{ willChange: "transform" }}
-          />
+          /> */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
           {/* Rating Badge */}
