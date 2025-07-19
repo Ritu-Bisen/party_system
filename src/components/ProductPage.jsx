@@ -60,12 +60,12 @@ const EnhancedProductCard = ({ product, index, viewMode = "grid", onClick }) => 
 
           {/* Product Image */}
           <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
-            <img
+            {/* <img
               src={product.image || "/placeholder.svg"}
               alt={product.title}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               style={{ willChange: "transform" }}
-            />
+            /> */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
           </div>
 
@@ -118,13 +118,13 @@ const EnhancedProductCard = ({ product, index, viewMode = "grid", onClick }) => 
         />
 
         {/* Product Image */}
-        <div className="relative h-48 overflow-hidden">
-          <img
+        <div className="relative overflow-hidden">
+          {/* <img
             src={product.image || "/placeholder.svg"}
             alt={product.title}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             style={{ willChange: "transform" }}
-          />
+          /> */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
           {/* Badges */}

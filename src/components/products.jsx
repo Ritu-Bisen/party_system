@@ -234,11 +234,11 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
             <div className="bg-gray-900/95 border border-white/20 rounded-2xl shadow-2xl overflow-hidden w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="relative">
-                <img
+                {/* <img
                   src={product.image || "/placeholder.svg"}
                   alt={product.title}
                   className="w-full h-64 object-cover"
-                />
+                /> */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
 
                 <button
