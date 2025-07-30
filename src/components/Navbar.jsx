@@ -1,11 +1,11 @@
 "use client"
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Menu, X, Zap } from 'lucide-react'
+import { Menu, X, Zap } from "lucide-react"
 import Button from "./ui/Button"
 import LoginModal from "./LoginModal"
 
-export default function Navbar() {
+export default function Navbar({ onLogin }) {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -29,6 +29,11 @@ export default function Navbar() {
   const handleLoginClick = () => {
     setShowLoginModal(true)
     setIsOpen(false) // Close mobile menu if open
+  }
+
+  const handleLoginSuccess = (userType, username) => {
+    setShowLoginModal(false)
+    onLogin(userType, username)
   }
 
   return (
@@ -131,7 +136,7 @@ export default function Navbar() {
       </motion.nav>
 
       {/* Login Modal */}
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} onLogin={handleLoginSuccess} />
     </>
   )
 }
