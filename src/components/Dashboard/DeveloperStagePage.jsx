@@ -1,408 +1,574 @@
 "use client"
 
-import React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react";
 import {
-  Code,
-  Users,
-  Edit,
-  Eye,
-  Trash2,
-  Search,
-  Download,
-  Clock,
-  CheckCircle,
-  X,
-  Save,
-  Target,
-  Activity,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-} from "lucide-react"
+  Code, Users, Search, Download, Clock,
+  CheckCircle, Target, Activity, History,
+  RefreshCw, AlertCircle, Save, Plus, Calendar, Clock as ClockIcon
+} from "lucide-react";
+import toast from "react-hot-toast";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
-// Mock Button component
-const Button = ({ children, variant = "default", className = "", ...props }) => {
-  const baseClasses =
-    "px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+// Button component
+const Button = ({ children, variant = "default", className = "", disabled = false, ...props }) => {
+  const baseClasses = "px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2";
   const variants = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
-    outline: "border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-blue-500",
-    secondary: "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500",
-  }
+    default: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:bg-gray-400",
+    outline: "border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-blue-500 disabled:bg-gray-100",
+    secondary: "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500 disabled:bg-gray-400",
+  };
   return (
-    <button className={`${baseClasses} ${variants[variant]} ${className}`} {...props}>
+    <button
+      className={`${baseClasses} ${variants[variant]} ${className} ${disabled ? 'cursor-not-allowed' : ''}`}
+      disabled={disabled}
+      {...props}
+    >
       {children}
     </button>
-  )
-}
+  );
+};
 
-// Enhanced team structure with team leaders and their tasks
-const teamLeaderTasks = [
-  {
-    id: 1,
-    taskTitle: "E-commerce Website Development",
-    description: "Complete e-commerce platform with payment integration and user management",
-    teamLeader: "Rahul Kumar",
-    department: "Frontend Development",
-    priority: "High",
-    status: "in-progress",
-    stage: "development",
-    dueDate: "2024-01-20",
-    createdDate: "2024-01-10",
-    estimatedHours: 80,
-    completedHours: 45,
-    assignedMembers: ["Satyendra", "Rahul"],
-    availableMembers: [
-      {
-        id: 1,
-        name: "Satyendra",
-        role: "Senior Frontend Developer",
-        skills: ["React", "Vue.js", "CSS", "JavaScript"],
-        status: "busy",
-        currentLoad: 75,
-      },
-      {
-        id: 6,
-        name: "Rahul",
-        role: "Junior Frontend Developer",
-        skills: ["React", "HTML", "CSS", "JavaScript"],
-        status: "available",
-        currentLoad: 40,
-      },
-    ],
-    systemName: "E-commerce Platform",
-    partyName: "TechMart Solutions",
-    notes: "Client requires mobile-first approach with PWA capabilities",
-  },
-  {
-    id: 2,
-    taskTitle: "API Development & Database Design",
-    description: "Design and implement RESTful APIs with optimized database structure",
-    teamLeader: "Priya Sharma",
-    department: "Backend Development",
-    priority: "High",
-    status: "pending",
-    stage: "planning",
-    dueDate: "2024-01-25",
-    createdDate: "2024-01-12",
-    estimatedHours: 60,
-    completedHours: 15,
-    assignedMembers: ["Chetan"],
-    availableMembers: [
-      {
-        id: 2,
-        name: "Chetan",
-        role: "Backend Developer",
-        skills: ["Node.js", "Python", "Database", "API"],
-        status: "available",
-        currentLoad: 60,
-      },
-      {
-        id: 7,
-        name: "Priya",
-        role: "Senior Backend Developer",
-        skills: ["Java", "Spring Boot", "Microservices"],
-        status: "busy",
-        currentLoad: 85,
-      },
-    ],
-    systemName: "CRM Backend",
-    partyName: "Business Solutions Inc",
-    notes: "Focus on scalability and performance optimization",
-  },
-  {
-    id: 3,
-    taskTitle: "Mobile App Testing & QA",
-    description: "Comprehensive testing of mobile application across different devices and platforms",
-    teamLeader: "Amit Singh",
-    department: "QA & Testing",
-    priority: "Medium",
-    status: "pending",
-    stage: "testing",
-    dueDate: "2024-01-18",
-    createdDate: "2024-01-08",
-    estimatedHours: 40,
-    completedHours: 20,
-    assignedMembers: ["Vikas"],
-    availableMembers: [
-      {
-        id: 3,
-        name: "Vikas",
-        role: "QA Engineer",
-        skills: ["Testing", "Automation", "Bug Tracking"],
-        status: "busy",
-        currentLoad: 70,
-      },
-      {
-        id: 8,
-        name: "Amit",
-        role: "Mobile Developer",
-        skills: ["React Native", "Flutter", "iOS", "Android"],
-        status: "available",
-        currentLoad: 50,
-      },
-    ],
-    systemName: "Mobile Testing Suite",
-    partyName: "AppTech Solutions",
-    notes: "Include performance testing and security validation",
-  },
-  {
-    id: 4,
-    taskTitle: "UI/UX Design System",
-    description: "Create comprehensive design system with components and style guide",
-    teamLeader: "Digendra Patel",
-    department: "UI/UX Design",
-    priority: "Medium",
-    status: "completed",
-    stage: "completed",
-    dueDate: "2024-01-15",
-    createdDate: "2024-01-05",
-    estimatedHours: 50,
-    completedHours: 50,
-    assignedMembers: ["Digendra"],
-    availableMembers: [
-      {
-        id: 4,
-        name: "Digendra",
-        role: "UI/UX Designer",
-        skills: ["Figma", "Adobe XD", "Design Systems"],
-        status: "available",
-        currentLoad: 30,
-      },
-    ],
-    systemName: "Design System",
-    partyName: "Creative Agency",
-    notes: "Design system successfully implemented and documented",
-  },
-  {
-    id: 5,
-    taskTitle: "Cloud Infrastructure Setup",
-    description: "Setup and configure cloud infrastructure with CI/CD pipelines",
-    teamLeader: "Pratap Kumar",
-    department: "DevOps & Infrastructure",
-    priority: "High",
-    status: "in-progress",
-    stage: "development",
-    dueDate: "2024-01-22",
-    createdDate: "2024-01-14",
-    estimatedHours: 35,
-    completedHours: 20,
-    assignedMembers: ["Pratap"],
-    availableMembers: [
-      {
-        id: 5,
-        name: "Pratap",
-        role: "DevOps Engineer",
-        skills: ["AWS", "Docker", "CI/CD", "Monitoring"],
-        status: "busy",
-        currentLoad: 80,
-      },
-    ],
-    systemName: "Cloud Infrastructure",
-    partyName: "Enterprise Solutions",
-    notes: "Focus on security and scalability requirements",
-  },
-]
+// Loading and Error Components
+const LoadingIndicator = ({ message }) => (
+  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <div className="flex items-center space-x-2">
+      <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+      <span className="text-blue-800">{message}</span>
+    </div>
+  </div>
+);
 
-const taskStages = [
-  { id: "planning", label: "Planning", color: "bg-blue-100 text-blue-800" },
-  { id: "development", label: "Development", color: "bg-purple-100 text-purple-800" },
-  { id: "testing", label: "Testing", color: "bg-yellow-100 text-yellow-800" },
-  { id: "review", label: "Review", color: "bg-orange-100 text-orange-800" },
-  { id: "completed", label: "Completed", color: "bg-green-100 text-green-800" },
-]
+const ErrorMessage = ({ error }) => (
+  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+    <div className="flex items-center space-x-2">
+      <AlertCircle className="w-4 h-4 text-red-600" />
+      <span className="text-red-800">Error: {error}</span>
+    </div>
+  </div>
+);
+
+const TabButton = ({ active, onClick, icon: Icon, label, count, color }) => (
+  <button
+    onClick={onClick}
+    className={`flex-1 max-w-xs px-6 py-3 text-sm font-medium transition-colors ${active
+      ? `text-${color}-600 border-b-2 border-${color}-600 bg-${color}-50`
+      : "text-gray-500 hover:text-gray-700"
+      }`}
+  >
+    <div className="flex items-center justify-center space-x-2">
+      <Icon className="w-4 h-4" />
+      <span>{label}</span>
+      <span className={`bg-${color}-100 text-${color}-800 text-xs px-2 py-1 rounded-full`}>
+        {count}
+      </span>
+    </div>
+  </button>
+);
+
+const SubmissionBanner = ({ selectedCount, onSubmit, submitting }) => (
+  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <Users className="w-5 h-5 text-blue-600" />
+        <span className="text-blue-800 font-medium">
+          {selectedCount} task(s) selected for assignment
+        </span>
+      </div>
+      <Button
+        onClick={onSubmit}
+        disabled={submitting}
+        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2"
+      >
+        <Save className="w-4 h-4" />
+        <span>{submitting ? 'Submitting...' : 'Submit Assignments'}</span>
+      </Button>
+    </div>
+  </div>
+);
+
+const AssignmentInput = ({ type, value, onChange, placeholder, options = [] }) => {
+  if (type === 'select') {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+      >
+        <option value="">Select Member</option>
+        {options.map(option => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    );
+  }
+
+  if (type === 'datetime') {
+    return (
+      <div className="relative">
+        <DatePicker
+          selected={value ? new Date(value) : null}
+          onChange={(date) => onChange(date)}
+          showTimeSelect
+          timeFormat="HH:mm"
+          timeIntervals={15}
+          dateFormat="MMMM d, yyyy h:mm aa"
+          placeholderText="Select date and time"
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+        />
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex space-x-1">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <ClockIcon className="w-4 h-4 text-gray-400" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+    />
+  );
+};
+
+// Stats Card Component
+const StatsCard = ({ title, count, description, icon: Icon, color }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className={`text-2xl font-bold ${color}`}>{count}</p>
+        <p className="text-xs text-gray-500 mt-1">{description}</p>
+      </div>
+      <div className={`w-12 h-12 bg-gradient-to-r ${color === 'text-orange-600' ? 'from-orange-500 to-red-600' : color === 'text-purple-600' ? 'from-purple-500 to-indigo-600' : 'from-green-500 to-emerald-600'} rounded-lg flex items-center justify-center`}>
+        <Icon className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  </div>
+);
+
+// Table Columns Configuration
+const TABLE_COLUMNS = [
+  { key: 'taskNo', label: 'Task No', index: 1 },
+  { key: 'givenDate', label: 'Given Date', index: 2 },
+  { key: 'postedBy', label: 'Posted By', index: 3 },
+  { key: 'typeOfWork', label: 'Type Of Work', index: 4 },
+  { key: 'takenFrom', label: 'Taken From', index: 5 },
+  { key: 'partyName', label: 'Party Name', index: 6 },
+  { key: 'systemName', label: 'System Name', index: 7 },
+  { key: 'descriptionOfWork', label: 'Description Of Work', index: 8 },
+  { key: 'linkOfSystem', label: 'Link Of System', index: 9 },
+  { key: 'attachmentFile', label: 'Attachment File', index: 10 },
+  { key: 'priorityInCustomer', label: 'Priority In Customer', index: 11 },
+  { key: 'notes', label: 'Notes', index: 12 },
+  { key: 'expectedDateToClose', label: 'Expected Date To Close', index: 13 },
+];
+
+const API_CONFIG = {
+  FETCH_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS&action=fetch",
+  UPDATE_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec"
+};
+
+// Helper function to format date as DD/MM/YYYY HH:MM
+const formatDateTime = (dateString) => {
+  if (!dateString) return '';
+
+  // If already in correct format, return as-is
+  if (typeof dateString === 'string' && dateString.match(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/)) {
+    return dateString;
+  }
+
+  // If it's a Date object or ISO string
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString; // Return original if invalid date
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
 
 export default function DeveloperStagePage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterDepartment, setFilterDepartment] = useState("")
-  const [filterStatus, setFilterStatus] = useState("")
-  const [expandedRows, setExpandedRows] = useState(new Set())
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState(null)
-  const [editFormData, setEditFormData] = useState({})
+  // State management
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterPostedBy, setFilterPostedBy] = useState("all");
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [selectedTasks, setSelectedTasks] = useState(new Set());
+  const [assignmentForm, setAssignmentForm] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [allTasks, setAllTasks] = useState([]);
+  const [pendingData, setPendingData] = useState([]);
+  const [historyData, setHistoryData] = useState([]);
+  const [uniquePostedBy, setUniquePostedBy] = useState([]);
+  const [teamMembers1, setTeamMembers1] = useState([]);
+  const [teamMembers2, setTeamMembers2] = useState([]);
 
-  const filteredTasks = teamLeaderTasks.filter((task) => {
-    const matchesSearch =
-      task.taskTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.teamLeader.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.department.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesDepartment = !filterDepartment || task.department === filterDepartment
-    const matchesStatus = !filterStatus || task.status === filterStatus
-    return matchesSearch && matchesDepartment && matchesStatus
-  })
+  // Data transformation function
+  const transformSheetData = (rawData) => {
+    if (!rawData || !Array.isArray(rawData)) return { tasks: [], teamMembers1: [], teamMembers2: [] };
 
-  const toggleRowExpansion = (taskId) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(taskId)) {
-      newExpanded.delete(taskId)
-    } else {
-      newExpanded.add(taskId)
+    if (rawData.length <= 6) {
+      console.log("Not enough data rows");
+      return { tasks: [], teamMembers1: [], teamMembers2: [] };
     }
-    setExpandedRows(newExpanded)
-  }
 
-  const handleEditClick = (task) => {
-    setEditingTask(task)
-    setEditFormData({
-      taskTitle: task.taskTitle,
-      description: task.description,
-      teamLeader: task.teamLeader,
-      department: task.department,
-      priority: task.priority,
-      status: task.status,
-      stage: task.stage,
-      dueDate: task.dueDate,
-      estimatedHours: task.estimatedHours,
-      completedHours: task.completedHours,
-      assignedMembers: [...task.assignedMembers],
-      systemName: task.systemName,
-      partyName: task.partyName,
-      notes: task.notes,
-    })
-    setIsEditModalOpen(true)
-  }
+    const dataRows = rawData.slice(6); // Skip first 6 rows
 
-  const handleCloseModal = () => {
-    setIsEditModalOpen(false)
-    setEditingTask(null)
-    setEditFormData({})
-  }
+    // Extract unique team members
+    const membersX = new Set();
+    const membersY = new Set();
 
-  const handleFormChange = (field, value) => {
-    setEditFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
+    dataRows.forEach(row => {
+      if (row[23]) membersX.add(row[23]);
+      if (row[24]) membersY.add(row[24]);
+    });
 
-  const handleMemberAssignment = (memberName, isAssigned) => {
-    setEditFormData((prev) => {
-      const newAssignedMembers = isAssigned
-        ? [...prev.assignedMembers, memberName]
-        : prev.assignedMembers.filter((name) => name !== memberName)
-      return {
-        ...prev,
-        assignedMembers: newAssignedMembers,
+    const teamMembers1 = Array.from(membersX).filter(Boolean);
+    const teamMembers2 = Array.from(membersY).filter(Boolean);
+
+    return {
+      tasks: dataRows.map((row, index) => {
+        if (!Array.isArray(row)) return null;
+
+        const task = {
+          id: index + 1,
+          rowNumber: index + 7,
+          taskNo: row[1] || '',
+          givenDate: formatDateTime(row[0]),
+          partyName: row[6] || '',
+          systemName: row[7] || '',
+          typeOfWork: row[4] || '',
+          descriptionOfWork: row[8] || '',
+          expectedDateToClose: formatDateTime(row[13]),
+          planned2: formatDateTime(row[20]),
+          actual2: formatDateTime(row[21]),
+          assignedMember1: row[23] || '',
+          assignedMember2: row[24] || '',
+          timeRequired: row[25] || '',
+          remarks: row[26] || '',
+          status: row[20] && !row[21] ? 'pending' : row[20] && row[21] ? 'completed' : 'pending',
+          priority: row[11] || 'Medium',
+          isReassigned: false,
+          originalAssignee: row[23] || ''
+        };
+
+        // Add all table columns data
+        TABLE_COLUMNS.forEach(column => {
+          if (column.index && row[column.index]) {
+            if (column.key === 'givenDate' || column.key === 'expectedDateToClose') {
+              task[column.key] = formatDateTime(row[column.index]);
+            } else {
+              task[column.key] = row[column.index];
+            }
+          } else {
+            task[column.key] = '';
+          }
+        });
+
+        return task;
+      }).filter(task => task !== null && task.taskNo),
+      teamMembers1,
+      teamMembers2
+    };
+  };
+
+  // Fetch data from Google Sheets
+  const fetchTasksFromAPI = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${API_CONFIG.FETCH_URL}&timestamp=${timestamp}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    })
-  }
 
-  const handleSaveTask = () => {
-    console.log("Saving task with assignments:", editFormData)
-    handleCloseModal()
-    alert("Task assignments updated successfully!")
-  }
+      const data = await response.json();
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "High":
-        return "bg-red-100 text-red-800 border-red-200"
-      case "Medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "Low":
-        return "bg-green-100 text-green-800 border-green-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+      if (data.success && Array.isArray(data.data)) {
+        const { tasks, teamMembers1, teamMembers2 } = transformSheetData(data.data);
+
+        setAllTasks(tasks);
+        setTeamMembers1(teamMembers1);
+        setTeamMembers2(teamMembers2);
+
+        // Filter data based on conditions
+        const pending = tasks.filter(item =>
+          item.planned2 && !item.actual2
+        );
+        const history = tasks.filter(item =>
+          item.planned2 && item.actual2
+        );
+
+        setPendingData(pending);
+        setHistoryData(history);
+        setUniquePostedBy([...new Set(tasks.map(item => item.postedBy).filter(Boolean))]);
+      } else {
+        throw new Error(data.message || "Failed to fetch data");
+      }
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending":
-        return "bg-orange-100 text-orange-800 border-orange-200"
-      case "completed":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "in-progress":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+  // Submit task assignment
+  const submitTaskAssignment = async () => {
+    if (selectedTasks.size === 0) {
+      toast.error("Please select at least one task to assign");
+      return;
     }
-  }
 
-  const getStageColor = (stage) => {
-    const stageInfo = taskStages.find((s) => s.id === stage)
-    return stageInfo ? stageInfo.color : "bg-gray-100 text-gray-800"
-  }
+    const incompleteTask = Array.from(selectedTasks).find(taskId => {
+      const form = assignmentForm[taskId];
+      return !form?.assignedMember1 ||
+        (form?.days === undefined && form?.hours === undefined) ||
+        !form?.remarks;
+    });
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "pending":
-        return <Clock className="w-4 h-4 text-orange-500" />
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case "in-progress":
-        return <Activity className="w-4 h-4 text-blue-500" />
-      default:
-        return <Clock className="w-4 h-4 text-gray-500" />
+    if (incompleteTask) {
+      toast.error("Please fill all fields (Member1, Days/Hours, Remarks) for selected tasks");
+      return;
     }
-  }
 
-  const getWorkloadColor = (load) => {
-    if (load >= 80) return "bg-red-100 text-red-800"
-    if (load >= 60) return "bg-yellow-100 text-yellow-800"
-    return "bg-green-100 text-green-800"
-  }
+    setSubmitting(true);
 
-  const uniqueDepartments = [...new Set(teamLeaderTasks.map((task) => task.department))]
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const taskId of selectedTasks) {
+        const task = displayedTasks.find(t => t.id === taskId);
+        const formData = assignmentForm[taskId];
+
+        const days = formData.days !== undefined ? parseInt(formData.days) : 0;
+        const hours = formData.hours !== undefined ? parseInt(formData.hours) : 0;
+        const totalHours = (days * 24) + hours;
+
+        const submissionDate = new Date().toISOString().split('T')[0];
+        const formDataToSend = new FormData();
+
+        formDataToSend.append('sheetName', 'FMS');
+        formDataToSend.append('action', 'update_task_assignment_staff');
+        formDataToSend.append('taskNo', task.taskNo);
+        formDataToSend.append('postedBy', task.postedBy);
+        formDataToSend.append('assignedMember1', formData.assignedMember1 || '');
+        formDataToSend.append('assignedMember2', formData.assignedMember2 || '');
+        formDataToSend.append('timeRequired1', totalHours.toString());
+        formDataToSend.append('remarks1', formData.remarks);
+        formDataToSend.append('submissionDate1', submissionDate);
+
+        try {
+          const response = await fetch(API_CONFIG.UPDATE_URL, {
+            method: 'POST',
+            body: formDataToSend
+          });
+
+          if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(`Failed to update task: ${errorData}`);
+          }
+
+          const responseText = await response.text();
+          let result;
+          try {
+            result = JSON.parse(responseText);
+          } catch (parseError) {
+            result = { success: true };
+          }
+
+          if (result.success !== false) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (taskError) {
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully assigned ${successCount} task(s)!`);
+        setSelectedTasks(new Set());
+        setAssignmentForm({});
+        fetchTasksFromAPI();
+      }
+
+      if (errorCount > 0) {
+        toast.error(`${errorCount} task(s) failed to update.`);
+      }
+    } catch (err) {
+      console.error("Error submitting assignments:", err);
+      toast.error("Error submitting assignments: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle task completion with date+time
+  const handleTaskCompletion = async (taskId) => {
+    try {
+      setLoading(true);
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const currentDateTime = formatDateTime(new Date());
+
+      const formData = new FormData();
+      formData.append('sheetName', 'FMS');
+      formData.append('action', 'update_task_completion');
+      formData.append('taskNo', task.taskNo);
+      formData.append('actual2', currentDateTime);
+
+      const response = await fetch(API_CONFIG.UPDATE_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Failed to update task');
+
+      // Update local state
+      setAllTasks(prevTasks =>
+        prevTasks.map(t =>
+          t.id === taskId ? { ...t, actual2: currentDateTime } : t
+        )
+      );
+
+      toast.success("Task marked as completed!");
+      fetchTasksFromAPI();
+    } catch (err) {
+      console.error("Error completing task:", err);
+      toast.error("Error completing task: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter tasks
+  const filteredPendingData = pendingData.filter(item => {
+    const matchesSearch = item.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.taskNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.postedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.systemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.descriptionOfWork?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPostedBy = filterPostedBy === 'all' || item.postedBy === filterPostedBy;
+    return matchesSearch && matchesPostedBy;
+  });
+
+  const filteredHistoryData = historyData.filter(item => {
+    const matchesSearch = item.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.taskNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.postedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.systemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.descriptionOfWork?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPostedBy = filterPostedBy === 'all' || item.postedBy === filterPostedBy;
+    return matchesSearch && matchesPostedBy;
+  });
+
+  const displayedTasks = activeTab === 'pending' ? filteredPendingData : filteredHistoryData;
 
   // Calculate stats
-  const totalTasks = teamLeaderTasks.length
-  const pendingTasks = teamLeaderTasks.filter((task) => task.status === "pending").length
-  const inProgressTasks = teamLeaderTasks.filter((task) => task.status === "in-progress").length
-  const completedTasks = teamLeaderTasks.filter((task) => task.status === "completed").length
+  const totalTasks = allTasks.length;
+  const pendingTasks = pendingData.length;
+  const historyTasks = historyData.length;
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchTasksFromAPI();
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchTasksFromAPI();
+
+    // Refresh data every 5 minutes
+    const interval = setInterval(fetchTasksFromAPI, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleRowExpansion = (taskId) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSelectedTasks(new Set());
+    setAssignmentForm({});
+  };
+
+  const handleCheckboxChange = (taskId, checked) => {
+    const newSelected = new Set(selectedTasks);
+    if (checked) {
+      newSelected.add(taskId);
+    } else {
+      newSelected.delete(taskId);
+      const newForm = { ...assignmentForm };
+      delete newForm[taskId];
+      setAssignmentForm(newForm);
+    }
+    setSelectedTasks(newSelected);
+  };
+
+  const handleAssignmentFormChange = (taskId, field, value) => {
+    setAssignmentForm(prev => ({
+      ...prev,
+      [taskId]: {
+        ...prev[taskId],
+        [field]: value
+      }
+    }));
+  };
 
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-              <p className="text-2xl font-bold text-gray-900">{totalTasks}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-orange-600">{pendingTasks}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-blue-600">{inProgressTasks}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{completedTasks}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatsCard
+          title="Total Tasks"
+          count={totalTasks}
+          description="All tasks in system"
+          icon={Target}
+          color="text-blue-600"
+        />
+        <StatsCard
+          title="Pending Tasks"
+          count={pendingTasks}
+          description="Ready for assignment"
+          icon={Clock}
+          color="text-orange-600"
+        />
+        <StatsCard
+          title="History Tasks"
+          count={historyTasks}
+          description="Completed assignments"
+          icon={History}
+          color="text-purple-600"
+        />
       </div>
+
+      {/* Loading and Error States */}
+      {loading && <LoadingIndicator message="Refreshing task data..." />}
+      {error && <ErrorMessage error={error} />}
 
       {/* Main Table Container */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -416,559 +582,423 @@ export default function DeveloperStagePage() {
               </h1>
               <p className="text-gray-600">Manage team leader tasks and assign team members</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" className="flex items-center space-x-2 bg-transparent">
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </Button>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Team Task
-              </Button>
-            </div>
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search tasks, team leaders..."
+                placeholder="Search tasks, party name, system name, description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <select
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
+              value={filterPostedBy}
+              onChange={(e) => setFilterPostedBy(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">All Departments</option>
-              {uniqueDepartments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
+              <option value="all">All Posted By</option>
+              {uniquePostedBy.map(postedBy => (
+                <option key={postedBy} value={postedBy}>{postedBy}</option>
               ))}
             </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
           </div>
+
+          {/* Task Status Tabs */}
+          <div className="flex border-b border-gray-200 mb-6">
+            <TabButton
+              active={activeTab === "pending"}
+              onClick={() => handleTabChange("pending")}
+              icon={Clock}
+              label="Pending"
+              count={pendingTasks}
+              color="orange"
+            />
+            <TabButton
+              active={activeTab === "history"}
+              onClick={() => handleTabChange("history")}
+              icon={History}
+              label="History"
+              count={historyTasks}
+              color="purple"
+            />
+          </div>
+
+          {/* Submission Banner */}
+          {selectedTasks.size > 0 && (
+            <SubmissionBanner
+              selectedCount={selectedTasks.size}
+              onSubmit={submitTaskAssignment}
+              submitting={submitting}
+            />
+          )}
         </div>
 
         {/* Tasks Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Task Details
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Team Leader
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority & Stage
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Team Members
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Progress
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Due Date
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTasks.map((task) => (
-                <React.Fragment key={task.id}>
-                  <tr className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <button
-                          onClick={() => toggleRowExpansion(task.id)}
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          {expandedRows.has(task.id) ? (
-                            <ChevronDown className="w-4 h-4" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </button>
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(task.status)}
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{task.taskTitle}</div>
-                            <div className="text-sm text-gray-500 truncate max-w-xs">{task.description}</div>
-                            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded mt-1 inline-block">
-                              {task.department}
+        <div className="overflow-x-auto relative" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center">
+                  <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium text-gray-900">Loading Tasks...</h3>
+                  <p className="text-gray-500">Refreshing task data</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                    <tr>
+                      {/* Only show Select column for pending tab */}
+                      {activeTab === "pending" && (
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Select</th>
+                      )}
+                      {activeTab === "pending" && (
+                        <>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assign Member1</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assign Member2</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time Required</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                        </>
+                      )}
+                      {activeTab === "history" && (
+                        <>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Member1</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Member2</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time Required</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                        </>
+                      )}
+                      {TABLE_COLUMNS.map(column => (
+                        <th key={column.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          {column.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {displayedTasks.map((task) => (
+                      <tr key={task.id} className="hover:bg-gray-50">
+                        {/* Checkbox - Only for pending tab */}
+                        {activeTab === "pending" && (
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedTasks.has(task.id)}
+                              onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                          </td>
+                        )}
+
+                        {activeTab === "pending" && (
+                          <>
+                            <td className="px-4 py-3">
+                              {selectedTasks.has(task.id) ? (
+                                <AssignmentInput
+                                  type="select"
+                                  value={assignmentForm[task.id]?.assignedMember1 || ''}
+                                  onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember1', value)}
+                                  options={teamMembers1}
+                                />
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {selectedTasks.has(task.id) ? (
+                                <AssignmentInput
+                                  type="select"
+                                  value={assignmentForm[task.id]?.assignedMember2 || ''}
+                                  onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember2', value)}
+                                  options={teamMembers2}
+                                />
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {selectedTasks.has(task.id) ? (
+                                <div className="flex gap-2">
+                                  <select
+                                    className="w-20 px-2 py-2 text-sm border rounded-md"
+                                    value={assignmentForm[task.id]?.days ?? ''}
+                                    onChange={(e) => handleAssignmentFormChange(task.id, 'days', e.target.value)}
+                                  >
+                                    <option value="">Days</option>
+                                    {Array.from({ length: 31 }, (_, i) => (
+                                      <option key={i} value={i}>{i}d</option>
+                                    ))}
+                                  </select>
+
+                                  <select
+                                    className="w-20 px-2 py-2 text-sm border rounded-md"
+                                    value={assignmentForm[task.id]?.hours ?? ''}
+                                    onChange={(e) => handleAssignmentFormChange(task.id, 'hours', e.target.value)}
+                                  >
+                                    <option value="">Hours</option>
+                                    {Array.from({ length: 24 }, (_, i) => (
+                                      <option key={i} value={i}>{i}h</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {selectedTasks.has(task.id) ? (
+                                <AssignmentInput
+                                  type="text"
+                                  value={assignmentForm[task.id]?.remarks || ''}
+                                  onChange={(value) => handleAssignmentFormChange(task.id, 'remarks', value)}
+                                  placeholder="Add remarks"
+                                />
+                              ) : (
+                                <span className="text-sm text-gray-400">-</span>
+                              )}
+                            </td>
+                          </>
+                        )}
+
+                        {activeTab === "history" && (
+                          <>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-900 font-medium">
+                                {task.assignedMember1 || '-'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-900 font-medium">
+                                {task.assignedMember2 || '-'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-900">
+                                {task.timeRequired || '-'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm text-gray-900 max-w-xs truncate block">
+                                {task.remarks || '-'}
+                              </span>
+                            </td>
+                          </>
+                        )}
+
+                        {TABLE_COLUMNS.map(column => (
+                          <td key={column.key} className="px-4 py-3 text-sm text-gray-900">
+                            {column.key === 'linkOfSystem' && task[column.key] ? (
+                              <a
+                                href={task[column.key]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                Link
+                              </a>
+                            ) : column.key === 'attachmentFile' && task[column.key] ? (
+                              <a
+                                href={task[column.key]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                File
+                              </a>
+                            ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
+                              <span className="max-w-xs truncate block">{task[column.key]}</span>
+                            ) : (
+                              task[column.key]
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden">
+                <div className="space-y-4 p-4">
+                  {displayedTasks.map((task) => (
+                    <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      {/* Checkbox for pending tab */}
+                      {activeTab === "pending" && (
+                        <div className="flex items-center mb-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.has(task.id)}
+                            onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                          />
+                          <span className="text-sm font-medium text-gray-900">Select for Assignment</span>
+                        </div>
+                      )}
+
+                      {/* Task Details from TABLE_COLUMNS */}
+                      <div className="space-y-3 mb-4">
+                        {TABLE_COLUMNS.map(column => (
+                          <div key={column.key}>
+                            <div className="text-xs text-gray-500 uppercase tracking-wider">{column.label}</div>
+                            <div className="text-sm text-gray-900 mt-1">
+                              {column.key === 'linkOfSystem' && task[column.key] ? (
+                                <a
+                                  href={task[column.key]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  View Link
+                                </a>
+                              ) : column.key === 'attachmentFile' && task[column.key] ? (
+                                <a
+                                  href={task[column.key]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  View File
+                                </a>
+                              ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
+                                <span className="break-words">{task[column.key] || '-'}</span>
+                              ) : (
+                                task[column.key] || '-'
+                              )}
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{task.teamLeader}</div>
-                          <div className="text-xs text-gray-500">Team Leader</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(task.priority)}`}
-                        >
-                          {task.priority}
-                        </span>
-                        <br />
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStageColor(task.stage)}`}
-                        >
-                          {taskStages.find((s) => s.id === task.stage)?.label || task.stage}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        {task.assignedMembers.slice(0, 2).map((member, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs font-medium">{member.charAt(0)}</span>
-                            </div>
-                            <span className="text-sm text-gray-900">{member}</span>
                           </div>
                         ))}
-                        {task.assignedMembers.length > 2 && (
-                          <div className="text-xs text-gray-500">+{task.assignedMembers.length - 2} more</div>
-                        )}
-                        <div className="text-xs text-blue-600">{task.assignedMembers.length} assigned</div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                task.status === "completed"
-                                  ? "bg-gradient-to-r from-green-400 to-green-600"
-                                  : "bg-gradient-to-r from-blue-400 to-purple-500"
-                              }`}
-                              style={{ width: `${(task.completedHours / task.estimatedHours) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-600">
-                            {Math.round((task.completedHours / task.estimatedHours) * 100)}%
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {task.completedHours}h / {task.estimatedHours}h
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{new Date(task.dueDate).toLocaleDateString()}</div>
-                      <div className="text-xs text-gray-500">
-                        {Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24))} days left
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button className="p-1 text-blue-600 hover:text-blue-800 transition-colors">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEditClick(task)}
-                          className="p-1 text-green-600 hover:text-green-800 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button className="p-1 text-red-600 hover:text-red-800 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {expandedRows.has(task.id) && (
-                    <tr className="bg-gray-50">
-                      <td colSpan="7" className="px-6 py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className="font-medium text-gray-700">System Name:</span>
-                            <p className="text-gray-600">{task.systemName}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Party Name:</span>
-                            <p className="text-gray-600">{task.partyName}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Created Date:</span>
-                            <p className="text-gray-600">{new Date(task.createdDate).toLocaleDateString()}</p>
-                          </div>
-                          <div className="md:col-span-2 lg:col-span-3">
-                            <span className="font-medium text-gray-700">Notes:</span>
-                            <p className="text-gray-600 mt-1">{task.notes}</p>
-                          </div>
-                          <div className="md:col-span-2 lg:col-span-3">
-                            <span className="font-medium text-gray-700">Available Team Members:</span>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {task.availableMembers.map((member) => (
-                                <div
-                                  key={member.id}
-                                  className="flex items-center space-x-2 bg-white rounded-lg p-2 border border-gray-200"
+
+                      {/* Assignment Section for Pending Tab */}
+                      {activeTab === "pending" && selectedTasks.has(task.id) && (
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Assignment Details</div>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wider">Assign Member 1</label>
+                              <AssignmentInput
+                                type="select"
+                                value={assignmentForm[task.id]?.assignedMember1 || ''}
+                                onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember1', value)}
+                                options={teamMembers1}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wider">Assign Member 2</label>
+                              <AssignmentInput
+                                type="select"
+                                value={assignmentForm[task.id]?.assignedMember2 || ''}
+                                onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember2', value)}
+                                options={teamMembers2}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wider">Time Required</label>
+                              <div className="flex gap-2 mt-1">
+                                <select
+                                  className="flex-1 px-3 py-2 text-sm border rounded-md"
+                                  value={assignmentForm[task.id]?.days ?? ''}
+                                  onChange={(e) => handleAssignmentFormChange(task.id, 'days', e.target.value)}
                                 >
-                                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-medium">{member.name.charAt(0)}</span>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-900">{member.name}</p>
-                                    <p className="text-xs text-gray-500">{member.role}</p>
-                                  </div>
-                                  <span
-                                    className={`px-2 py-1 text-xs rounded-full ${getWorkloadColor(member.currentLoad)}`}
-                                  >
-                                    {member.currentLoad}%
-                                  </span>
-                                </div>
-                              ))}
+                                  <option value="">Days</option>
+                                  {Array.from({ length: 31 }, (_, i) => (
+                                    <option key={i} value={i}>{i}d</option>
+                                  ))}
+                                </select>
+                                <select
+                                  className="flex-1 px-3 py-2 text-sm border rounded-md"
+                                  value={assignmentForm[task.id]?.hours ?? ''}
+                                  onChange={(e) => handleAssignmentFormChange(task.id, 'hours', e.target.value)}
+                                >
+                                  <option value="">Hours</option>
+                                  {Array.from({ length: 24 }, (_, i) => (
+                                    <option key={i} value={i}>{i}h</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 uppercase tracking-wider">Remarks</label>
+                              <AssignmentInput
+                                type="text"
+                                value={assignmentForm[task.id]?.remarks || ''}
+                                onChange={(value) => handleAssignmentFormChange(task.id, 'remarks', value)}
+                                placeholder="Add remarks"
+                              />
                             </div>
                           </div>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      )}
 
-        {filteredTasks.length === 0 && (
+                      {/* Assignment Display for History Tab */}
+                      {activeTab === "history" && (
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Assignment Details</div>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500 uppercase tracking-wider">Member 1</div>
+                              <div className="text-gray-900 font-medium">{task.assignedMember1 || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 uppercase tracking-wider">Member 2</div>
+                              <div className="text-gray-900 font-medium">{task.assignedMember2 || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 uppercase tracking-wider">Time Required</div>
+                              <div className="text-gray-900">{task.timeRequired || '-'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 uppercase tracking-wider">Remarks</div>
+                              <div className="text-gray-900 break-words">{task.remarks || '-'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        {/* Empty State */}
+        {displayedTasks.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-gray-400" />
+              {activeTab === "history" ? (
+                <History className="w-8 h-8 text-gray-400" />
+              ) : (
+                <Clock className="w-8 h-8 text-gray-400" />
+              )}
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-500">Try adjusting your search criteria or filters.</p>
+            <p className="text-gray-500">
+              {activeTab === "pending"
+                ? "No pending tasks found"
+                : "No historical tasks found"}
+            </p>
+            <Button
+              onClick={handleRefresh}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Refresh Data
+            </Button>
           </div>
         )}
       </div>
-
-      {/* Edit Task & Assign Members Modal */}
-      {isEditModalOpen && editingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Edit Task & Assign Team Members</h2>
-                  <p className="text-sm text-gray-600">Update task details and manage team member assignments</p>
-                </div>
-              </div>
-              <button onClick={handleCloseModal} className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column - Task Details */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Task Details</h3>
-
-                    {/* Task Title */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Task Title *</label>
-                      <input
-                        type="text"
-                        value={editFormData.taskTitle || ""}
-                        onChange={(e) => handleFormChange("taskTitle", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter task title"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                      <textarea
-                        value={editFormData.description || ""}
-                        onChange={(e) => handleFormChange("description", e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter task description"
-                      />
-                    </div>
-
-                    {/* Team Leader Info */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Team Leader</label>
-                      <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{editFormData.teamLeader}</p>
-                          <p className="text-xs text-gray-600">{editFormData.department}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Priority & Status */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                        <select
-                          value={editFormData.priority || ""}
-                          onChange={(e) => handleFormChange("priority", e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="High">High Priority</option>
-                          <option value="Medium">Medium Priority</option>
-                          <option value="Low">Low Priority</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select
-                          value={editFormData.status || ""}
-                          onChange={(e) => handleFormChange("status", e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Due Date */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                      <input
-                        type="date"
-                        value={editFormData.dueDate || ""}
-                        onChange={(e) => handleFormChange("dueDate", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    {/* Hours */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Estimated Hours</label>
-                        <input
-                          type="number"
-                          value={editFormData.estimatedHours || ""}
-                          onChange={(e) => handleFormChange("estimatedHours", Number.parseInt(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Completed Hours</label>
-                        <input
-                          type="number"
-                          value={editFormData.completedHours || ""}
-                          onChange={(e) => handleFormChange("completedHours", Number.parseInt(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          min="0"
-                          max={editFormData.estimatedHours || undefined}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column - Team Member Assignment */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Member Assignment</h3>
-
-                    {/* Currently Assigned Members */}
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">
-                        Currently Assigned ({editFormData.assignedMembers?.length || 0})
-                      </h4>
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {editFormData.assignedMembers?.map((memberName, index) => {
-                          const memberInfo = editingTask.availableMembers.find((m) => m.name === memberName)
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium">{memberName.charAt(0)}</span>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{memberName}</p>
-                                  <p className="text-xs text-gray-600">{memberInfo?.role || "Team Member"}</p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleMemberAssignment(memberName, false)}
-                                className="text-red-600 hover:text-red-800 transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )
-                        })}
-                        {(!editFormData.assignedMembers || editFormData.assignedMembers.length === 0) && (
-                          <p className="text-sm text-gray-500 italic">No members assigned yet</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Available Team Members */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Available Team Members</h4>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {editingTask.availableMembers?.map((member) => {
-                          const isAssigned = editFormData.assignedMembers?.includes(member.name)
-                          return (
-                            <div
-                              key={member.id}
-                              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                isAssigned
-                                  ? "bg-gray-100 border-gray-300 opacity-50"
-                                  : "bg-blue-50 border-blue-200 hover:bg-blue-100"
-                              }`}
-                            >
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium">{member.name.charAt(0)}</span>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                                  <p className="text-xs text-gray-600">{member.role}</p>
-                                  <div className="flex items-center space-x-2 mt-1">
-                                    <span
-                                      className={`px-2 py-1 text-xs rounded-full ${getWorkloadColor(member.currentLoad)}`}
-                                    >
-                                      {member.currentLoad}% load
-                                    </span>
-                                    <span
-                                      className={`px-2 py-1 text-xs rounded-full ${
-                                        member.status === "available"
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
-                                      {member.status}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {member.skills.slice(0, 3).map((skill, skillIndex) => (
-                                      <span
-                                        key={skillIndex}
-                                        className="px-1 py-0.5 text-xs bg-gray-200 text-gray-700 rounded"
-                                      >
-                                        {skill}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleMemberAssignment(member.name, !isAssigned)}
-                                disabled={isAssigned}
-                                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                                  isAssigned
-                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    : "bg-blue-600 text-white hover:bg-blue-700"
-                                }`}
-                              >
-                                {isAssigned ? "Assigned" : "Assign"}
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Visualization */}
-              {editFormData.estimatedHours > 0 && (
-                <div className="border-t border-gray-200 pt-6">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Task Progress</h4>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-1 bg-gray-200 rounded-full h-4">
-                      <div
-                        className="h-4 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 transition-all duration-300"
-                        style={{
-                          width: `${Math.min(((editFormData.completedHours || 0) / (editFormData.estimatedHours || 1)) * 100, 100)}%`,
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-600 min-w-[60px]">
-                      {Math.round(((editFormData.completedHours || 0) / (editFormData.estimatedHours || 1)) * 100)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {editFormData.completedHours || 0}h completed of {editFormData.estimatedHours || 0}h estimated
-                  </p>
-                </div>
-              )}
-
-              {/* Notes */}
-              <div className="border-t border-gray-200 pt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes & Comments</label>
-                <textarea
-                  value={editFormData.notes || ""}
-                  onChange={(e) => handleFormChange("notes", e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Add notes or comments about the task..."
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-              <Button variant="outline" onClick={handleCloseModal} className="px-6 bg-transparent">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveTask}
-                className="px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white flex items-center space-x-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>Save Changes</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  )
+  );
 }

@@ -1,6 +1,9 @@
 "use client"
 import { ChevronRight, Target, Rocket, Quote } from "lucide-react"
+import { motion } from "framer-motion"
+
 export default function VisionMission({ onTransformBusinessClick }) {
+  
   return (
     <section className="relative py-16 sm:py-24 bg-gradient-to-br from-gray-900 via-black to-gray-900">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,12 +81,17 @@ export default function VisionMission({ onTransformBusinessClick }) {
                   ensuring business owners truly enjoy the journey towards automation and growth."
                 </blockquote>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">ST</span>
+                  <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center">
+                    <img
+                      src="Untitled-1.jpg"
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
+
                   <div>
                     <p className="text-white font-semibold">Satyendra Tandan</p>
-                    <p className="text-gray-400">CEO, Botivate</p>
+                    <p className="text-gray-400">CEO & Founder, Botivate</p>
                   </div>
                 </div>
               </div>
@@ -92,10 +100,14 @@ export default function VisionMission({ onTransformBusinessClick }) {
         </div>
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 cursor-pointer group">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 cursor-pointer group"
+          >
             <button onClick={onTransformBusinessClick}>Ready to Transform Your Business?</button>
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

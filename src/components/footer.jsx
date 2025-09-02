@@ -154,21 +154,6 @@ export default function Footer() {
                   </li>
                 ))}
               </ul>
-
-              {/* Newsletter */}
-              <div>
-                <h5 className="text-sm font-semibold mb-3 text-white">Stay Updated</h5>
-                <div className="flex">
-                  <input
-                    type="email"
-                    placeholder="Enter email"
-                    className="flex-1 px-3 py-2 bg-gray-800/50 border border-white/10 rounded-l-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
-                  />
-                  <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 rounded-r-lg transition-all">
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
             </motion.div>
           </div>
         </div>

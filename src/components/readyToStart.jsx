@@ -2,7 +2,10 @@
 import { useState } from "react"
 
 import { motion } from "framer-motion"
-import { Send, CheckCircle, Mail, User, MessageSquare } from "lucide-react"
+import { Send, CheckCircle, Mail, User, MessageSquare, AlertCircle, Loader2 } from "lucide-react"
+
+// Your Google Apps Script URL
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec";
 
 export default function ReadyToStart() {
   const [formData, setFormData] = useState({
@@ -12,22 +15,106 @@ export default function ReadyToStart() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null) // 'success' | 'error' | null
+  const [statusMessage, setStatusMessage] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validation
+    if (!formData.name || !formData.email || !formData.message) {
+      setSubmitStatus('error');
+      setStatusMessage('Please fill in all fields');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setSubmitStatus('error');
+      setStatusMessage('Please enter a valid email address');
+      return;
+    }
+
     setIsSubmitting(true)
+    setSubmitStatus(null);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // Prepare row data for Email-Send sheet
+      // Column A: Timestamp, Column B: (empty), Column C: Name, Column D: Email, Column E: Message, Column F: Status
+      const timestamp = new Date().toLocaleString();
+      const rowData = [
+        timestamp,        // Column A
+        '',              // Column B (empty)
+        formData.name,   // Column C
+        formData.email,  // Column D  
+        formData.message,// Column E
+        'Processing'     // Column F
+      ];
 
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+      const submitFormData = new FormData();
+      submitFormData.append('sheetName', 'Email-Send');
+      submitFormData.append('action', 'insert');
+      submitFormData.append('rowData', JSON.stringify(rowData));
 
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setIsSubmitted(false)
-      setFormData({ name: "", email: "", message: "" })
-    }, 3000)
+      console.log('Sending data:', {
+        sheetName: 'Email-Send',
+        action: 'insert',
+        rowData: rowData
+      });
+
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: submitFormData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Response:', result);
+
+      if (result.success) {
+        setSubmitStatus('success');
+        setStatusMessage('Thank you! Your message has been submitted successfully. We\'ll get back to you within 24 hours.');
+        setIsSubmitted(true);
+        
+        // Optional: Also send emails by calling the email action
+        try {
+          const emailFormData = new FormData();
+          emailFormData.append('sheetName', 'Email-Send');
+          emailFormData.append('action', 'submitContact');
+          emailFormData.append('name', formData.name);
+          emailFormData.append('email', formData.email);
+          emailFormData.append('message', formData.message);
+
+          await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: emailFormData
+          });
+        } catch (emailError) {
+          console.warn('Email sending failed, but form was submitted:', emailError);
+        }
+
+        // Reset form after 3 seconds
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setSubmitStatus(null);
+          setFormData({ name: "", email: "", message: "" });
+        }, 3000);
+        
+      } else {
+        throw new Error(result.error || 'Failed to submit form');
+      }
+
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      setSubmitStatus('error');
+      setStatusMessage('Sorry, there was an error submitting your message. Please try again or contact us directly at info@botivate.in');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const handleChange = (e) => {
@@ -35,6 +122,11 @@ export default function ReadyToStart() {
       ...formData,
       [e.target.name]: e.target.value,
     })
+    // Clear error status when user starts typing
+    if (submitStatus === 'error') {
+      setSubmitStatus(null);
+      setStatusMessage('');
+    }
   }
 
   const techLogos = [
@@ -47,7 +139,7 @@ export default function ReadyToStart() {
   ]
 
   return (
-    <section className="relative py-20 md:py-32 bg-gradient-to-br from-gray-900 via-black to-gray-900 overflow-hidden">
+    <section id="contact" className="relative py-20 md:py-32 bg-gradient-to-br from-gray-900 via-black to-gray-900 overflow-hidden">
       {/* Background Effects */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-cyan-900/20" />
@@ -159,11 +251,27 @@ export default function ReadyToStart() {
                   <p className="text-gray-300">We'll get back to you within 24 hours.</p>
                 </motion.div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-6">
                   <div className="text-center mb-8">
                     <h3 className="text-2xl font-bold text-white mb-2">Let's Talk</h3>
                     <p className="text-gray-300">Tell us about your project and we'll get back to you.</p>
                   </div>
+
+                  {/* Status Message */}
+                  {submitStatus && !isSubmitted && (
+                    <div className={`flex items-center space-x-2 p-4 rounded-xl ${
+                      submitStatus === 'success' 
+                        ? 'bg-green-900/20 border border-green-500/20 text-green-300' 
+                        : 'bg-red-900/20 border border-red-500/20 text-red-300'
+                    }`}>
+                      {submitStatus === 'success' ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5" />
+                      )}
+                      <span className="text-sm">{statusMessage}</span>
+                    </div>
+                  )}
 
                   {/* Name Input */}
                   <div className="relative">
@@ -209,13 +317,14 @@ export default function ReadyToStart() {
 
                   {/* Submit Button */}
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit}
                     disabled={isSubmitting}
                     className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 group"
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
                         <span>Sending...</span>
                       </>
                     ) : (
@@ -225,7 +334,7 @@ export default function ReadyToStart() {
                       </>
                     )}
                   </button>
-                </form>
+                </div>
               )}
             </div>
           </motion.div>

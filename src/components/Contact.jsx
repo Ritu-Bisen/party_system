@@ -87,7 +87,7 @@ export default function Contact() {
   }
 
   return (
-    <section ref={ref} className="py-24 relative overflow-hidden">
+    <section id="contact" ref={ref} className="py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-900/30 to-black" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.01)_1px,transparent_1px)] bg-[size:72px_72px]" />
@@ -192,6 +192,17 @@ export default function Contact() {
             </div>
           </div>
         </motion.div>
+
+        {/* Custom CSS for hiding scrollbar */}
+        <style jsx>{`
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
       </div>
     </section>
   )

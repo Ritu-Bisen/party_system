@@ -9,7 +9,7 @@ const counters = [
   { label: "Happy Clients", value: 250, suffix: "+" },
   { label: "Success Rate", value: 98, suffix: "%" },
   { label: "Team Members", value: 50, suffix: "+" },
-  { label: "Countries Served", value: 25, suffix: "+" },
+  { label: "Countries Served", value: 2, suffix: "+" },
   { label: "Years Experience", value: 5, suffix: "+" },
 ]
 
@@ -126,6 +126,11 @@ export default function Counter() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                document.getElementById('contact')?.scrollIntoView({
+                  behavior: 'smooth'
+                });
+              }}
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300"
             >
               Start Your Automation Journey

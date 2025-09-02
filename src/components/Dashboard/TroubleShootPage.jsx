@@ -115,7 +115,7 @@ const commonSolutions = [
   {
     title: "Clear Browser Cache",
     description: "Clear browser cache and cookies to resolve display issues",
-    steps: ["Open browser settings", "Navigate to Privacy/Security", "Clear browsing data", "Restart browser"],
+    steps: ["Open browser settings", " to Privacy/Security", "Clear browsing data", "Restart browser"],
   },
   {
     title: "Check Network Connection",
@@ -165,20 +165,20 @@ export default function TroubleShootPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Troubleshoot Center</h1>
-            <p className="text-gray-600">Find solutions to common technical issues</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Troubleshoot Center</h1>
+            <p className="text-gray-600 text-sm sm:text-base">Find solutions to common technical issues</p>
           </div>
-          <div className="flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
-            <Search className="w-4 h-4 text-gray-500" />
+          <div className="flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2 w-full lg:w-auto">
+            <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
             <input
               type="text"
               placeholder="Search issues..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm w-64"
+              className="bg-transparent border-none outline-none text-sm flex-1 min-w-0 lg:w-64"
             />
           </div>
         </div>
@@ -209,9 +209,8 @@ export default function TroubleShootPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">View solutions</span>
               <ChevronRight
-                className={`w-4 h-4 text-gray-400 transition-transform ${
-                  selectedCategory === category.id ? "rotate-90" : ""
-                }`}
+                className={`w-4 h-4 text-gray-400 transition-transform ${selectedCategory === category.id ? "rotate-90" : ""
+                  }`}
               />
             </div>
           </motion.div>
@@ -256,9 +255,8 @@ export default function TroubleShootPage() {
                       <p className="text-gray-600">{issue.description}</p>
                     </div>
                     <ChevronRight
-                      className={`w-4 h-4 text-gray-400 transition-transform ${
-                        expandedIssue === `${selectedCategory}-${index}` ? "rotate-90" : ""
-                      }`}
+                      className={`w-4 h-4 text-gray-400 transition-transform ${expandedIssue === `${selectedCategory}-${index}` ? "rotate-90" : ""
+                        }`}
                     />
                   </div>
 
@@ -313,21 +311,7 @@ export default function TroubleShootPage() {
         </div>
       </div>
 
-      {/* Contact Support */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-gray-200 p-6">
-        <div className="text-center">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Still Need Help?</h3>
-          <p className="text-gray-600 mb-4">Can't find a solution? Contact our technical support team</p>
-          <div className="flex justify-center space-x-4">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-              Contact Support
-            </Button>
-            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent">
-              Submit Ticket
-            </Button>
-          </div>
-        </div>
-      </div>
+
     </div>
   )
 }
