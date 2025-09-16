@@ -76,14 +76,7 @@ const Header = ({ children, user, onLogout }) => {
                     {/* Right section */}
                     <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                         {/* Search - hidden on mobile, compact on tablet, full on desktop */}
-                        <div className="hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
-                            <Search className="w-4 h-4 text-gray-500" />
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                className="bg-transparent border-none outline-none text-sm w-32 lg:w-48"
-                            />
-                        </div>
+                       
 
                         {/* Mobile search button */}
                         <button className="md:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">

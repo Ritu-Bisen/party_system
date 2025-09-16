@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import React from "react"
 import { RefreshCw, AlertCircle, Clock, CheckCircle, Save, Users, History } from 'lucide-react'
+import supabase from "../../supabaseClient"
+
 
 // ==================== COMPONENTS ====================
 
@@ -61,8 +63,8 @@ const TabButton = ({ active, onClick, icon: Icon, label, count, color }) => (
   <button
     onClick={onClick}
     className={`flex-1 px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm font-medium transition-colors ${active
-        ? `text-${color}-600 border-b-2 border-${color}-600 bg-${color}-50`
-        : "text-gray-500 hover:text-gray-700"
+      ? `text-${color}-600 border-b-2 border-${color}-600 bg-${color}-50`
+      : "text-gray-500 hover:text-gray-700"
       }`}
   >
     <div className="flex flex-col md:flex-row items-center justify-center md:space-x-2 space-y-1 md:space-y-0">
@@ -85,9 +87,9 @@ const SubmissionBanner = ({ selectedCount, onSubmit, submitting }) => (
         </span>
       </div>
       <Button
-        onClick={onSubmit}
+        onClick={handleSubmit}
         disabled={submitting}
-        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2"
+        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2 w-full sm:w-auto"
       >
         <Save className="w-4 h-4" />
         <span>{submitting ? 'Submitting...' : 'Submit Assignments'}</span>
@@ -105,8 +107,10 @@ const AssignmentInput = ({ type, value, onChange, placeholder, options = [] }) =
         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
       >
         <option value="">Select Member</option>
-        {options.map(option => (
-          <option key={option} value={option}>{option}</option>
+        {options.slice(1).map(option => (   // 👈 header (first item) skip
+          <option key={option} value={option}>
+            {option}
+          </option>
         ))}
       </select>
     )
@@ -123,32 +127,32 @@ const AssignmentInput = ({ type, value, onChange, placeholder, options = [] }) =
   )
 }
 
+
 // ==================== CONSTANTS ====================
 
-const TEAM_MEMBERS = [
-  "Satyendra", "Chetan", "Vikas", "Digendra",
-  "Pratap", "Rahul", "Priya", "Amit"
-]
+
+
 
 const API_CONFIG = {
   FETCH_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS&action=fetch",
-  UPDATE_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec"
+  UPDATE_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
+  MASTER_SHEET_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master%20Sheet%20Link&action=fetch"
 }
 
 const TABLE_COLUMNS = [
-  { key: 'taskNo', label: 'Task No', index: 1 },
-  { key: 'givenDate', label: 'Given Date', index: 2 },
-  { key: 'postedBy', label: 'Posted By', index: 3 },
-  { key: 'typeOfWork', label: 'Type Of Work', index: 4 },
-  { key: 'takenFrom', label: 'Taken From', index: 5 },
-  { key: 'partyName', label: 'Party Name', index: 6 },
-  { key: 'systemName', label: 'System Name', index: 7 },
-  { key: 'descriptionOfWork', label: 'Description Of Work', index: 8 },
-  { key: 'linkOfSystem', label: 'Link Of System', index: 9 },
-  { key: 'attachmentFile', label: 'Attachment File', index: 10 },
-  { key: 'priorityInCustomer', label: 'Priority In Customer', index: 11 },
+  { key: 'task_no', label: 'Task No', index: 1 },
+  { key: 'given_date', label: 'Given Date', index: 2 },
+  { key: 'posted_by', label: 'Posted By', index: 3 },
+  { key: 'type_of_work', label: 'Type Of Work', index: 4 },
+  { key: 'taken_from', label: 'Taken From', index: 5 },
+  { key: 'party_name', label: 'Party Name', index: 6 },
+  { key: 'system_name', label: 'System Name', index: 7 },
+  { key: 'description_of_work', label: 'Description Of Work', index: 8 },
+  { key: 'link_of_system', label: 'Link Of System', index: 9 },
+  { key: 'attachment_file', label: 'Attachment File', index: 10 },
+  { key: 'priority_in_customer', label: 'Priority In Customer', index: 11 },
   { key: 'notes', label: 'Notes', index: 12 },
-  { key: 'expectedDateToClose', label: 'Expected Date To Close', index: 13 }
+  { key: 'expected_date_to_close', label: 'Expected Date To Close', index: 13 }
 ]
 // Add this after the TABLE_COLUMNS constant and before the main component
 const formatDate = (dateString) => {
@@ -174,113 +178,149 @@ export default function TaskAssignmentSystem() {
   const [selectedTasks, setSelectedTasks] = useState(new Set())
   const [assignmentForm, setAssignmentForm] = useState({})
   const [submitting, setSubmitting] = useState(false)
-
-  // ==================== DATA TRANSFORMATION ====================
-  const transformSheetData = (rawData) => {
-    const dataRows = rawData.slice(6) // Skip first 6 rows (header is in row 6)
-
-    return dataRows.map((row, index) => {
-      const columnO = row[14] // Column O - Assignment indicator
-      const columnP = row[15] // Column P - Completion date
-
-      // Determine status based on column conditions
-      let status = "pending"
-      if (columnO && columnP) {
-        status = "completed"
-      } else if (columnO && !columnP) {
-        status = "pending"
-      }
-
-      // Transform row data to task object
-      const task = {
-        id: index + 1,
-        rowNumber: index + 7, // Actual sheet row number
-        status: status,
-        columnO: columnO,
-        columnP: columnP
-      }
-
-      // Map columns to task properties
-      TABLE_COLUMNS.forEach(column => {
-        task[column.key] = row[column.index] || ""
-      })
-
-      // Assignment fields (columns R, S, T) - FETCH EXISTING DATA
-      task.assignedMember = row[17] || ""  // Column R
-      task.timeRequired = row[18] || ""    // Column S
-      task.remarks = row[19] || ""         // Column T
-
-      return task
-    })
-  }
-
-  const filterTasksByStatus = (tasks, status) => {
-    return tasks.filter(task => {
-      if (status === "pending") {
-        return task.columnO && !task.columnP
-      } else if (status === "completed") {
-        return task.columnO && task.columnP
-      } else if (status === "history") {
-        // History shows tasks that have assignment data (R, S, T columns filled)
-        return task.assignedMember || task.timeRequired || task.remarks
-      }
-      return true
-    })
-  }
+  const [teamMembers, setTeamMembers] = useState([]) // Store team members from Master Sheet
 
   // ==================== API FUNCTIONS ====================
-  const fetchTasksFromAPI = async () => {
-    setLoading(true)
-    setError(null)
+const fetchTeamMembers = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("dropdown")
+      .select("member_name") // adjust to your actual column
 
-    try {
-      const response = await fetch(API_CONFIG.FETCH_URL)
+    if (error) throw error
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+    const members = [...new Set(data.map(row => row.member_name).filter(Boolean))]
+    setTeamMembers(members)
+  } catch (err) {
+    console.error("Error fetching team members:", err)
+    // fallback dummy
+    setTeamMembers(["Satyendra", "Chetan", "Vikas", "Digendra", "Pratap", "Rahul", "Priya", "Amit"])
+  }
+}
 
-      const data = await response.json()
 
-      if (data.success && Array.isArray(data.data)) {
-        const transformedTasks = transformSheetData(data.data)
-        setAllTasks(transformedTasks) // Store ALL tasks
-      } else {
-        throw new Error(data.message || "Failed to fetch data")
-      }
-    } catch (err) {
-      console.error("Error fetching tasks:", err)
-      setError(err.message)
-    } finally {
-      setLoading(false)
+
+const transformSheetData = (rawData) => {
+  const tasks = rawData.map((row, index) => {
+    // ✅ Determine status directly from planned1 / actual1
+    let status = "pending"
+    if (row.planned1 && row.actual1) {
+      status = "completed"
+    } else if (row.planned1 && !row.actual1) {
+      status = "pending"
     }
-  }
 
-  const submitTaskAssignment = async (task, formData) => {
+    return {
+      id: row.id,
+      status,
+
+      // Direct Supabase field mappings
+      planned1: row.planned1 || null,
+      actual1: row.actual1 || null,
+      team_member_name: row.team_member_name || "",
+      how_many_time_take: row.how_many_time_take || "",
+      remarks: row.remarks || "",
+
+      // Other FMS fields
+
+      task_no: row.task_no || "",
+      given_date: row.given_date || "",
+      posted_by: row.posted_by || "",
+      type_of_work: row.type_of_work || "",
+      taken_from:row.taken_from||"",
+      party_name: row.party_name || "",
+      system_name: row.system_name || "",
+      description_of_work: row.description_of_work || "",
+      link_of_system: row.link_of_system || "",
+      attachment_file: row.attachment_file || "",
+      priority_in_customer: row.priority_in_customer || "",
+      notes: row.notes || "",
+      expected_date_to_close: row.expected_date_to_close || ""
+    }
+  })
+
+  // ✅ Sorting: assigned (planned1 but no actual1) first
+  return tasks.sort((a, b) => {
+    const aIsCurrentlyAssigned = a.planned1 && !a.actual1
+    const bIsCurrentlyAssigned = b.planned1 && !b.actual1
+
+    if (aIsCurrentlyAssigned && !bIsCurrentlyAssigned) return -1
+    if (!aIsCurrentlyAssigned && bIsCurrentlyAssigned) return 1
+    if (aIsCurrentlyAssigned && bIsCurrentlyAssigned) return b.id - a.id
+
+    return b.id - a.id
+  })
+}
+
+
+const filterTasksByStatus = (tasks, status) => {
+  return tasks.filter(task => {
+    if (status === "pending") {
+      // planned1 filled, actual1 empty
+      return task.planned1 && !task.actual1
+    } else if (status === "completed") {
+      // planned1 + actual1 both filled
+      return task.planned1 && task.actual1
+    } else if (status === "history") {
+      // history shows tasks with any assignment details
+      return task.team_member_name || task.how_many_time_take || task.remarks
+    }
+    return true // if no filter, return all
+  })
+}
+
+  // ==================== API FUNCTIONS ====================
+ const fetchTasksFromAPI = async () => {
+  setLoading(true)
+  setError(null)
+
+  try {
+    const { data, error } = await supabase
+      .from("FMS")
+      .select("*") // or only needed columns
+
+    if (error) throw error
+
+    const transformedTasks = transformSheetData(data) // 👈 you can reuse transformation
+    setAllTasks(transformedTasks)
+  } catch (err) {
+    console.error("Error fetching tasks:", err)
+    setError(err.message)
+  } finally {
+    setLoading(false)
+  }
+}
+
+
+const submitTaskAssignment = async (task, formData) => {
+  try {
     const submissionDate = new Date().toISOString().split('T')[0]
-    console.log(`Submitting assignment for task: ${task.taskNo}`)
 
-    const formDataToSend = new FormData()
-    formDataToSend.append('sheetName', 'FMS')
-    formDataToSend.append('action', 'update_task_assignment')
-    formDataToSend.append('taskNo', task.taskNo)
-    formDataToSend.append('assignedMember', formData.assignedMember)
-    formDataToSend.append('timeRequired', formData.timeRequired)
-    formDataToSend.append('remarks', formData.remarks)
-    formDataToSend.append('submissionDate', submissionDate)
+    const { data, error } = await supabase
+      .from("FMS")
+      .update({
+        team_member_name: formData.assignedMember,
+        how_many_time_take: formData.timeRequired,
+        remarks: formData.remarks,
+        actual1: submissionDate,
+      })
+      .eq("task_no", task.task_no) // adjust if primary key is different
 
-    const response = await fetch(API_CONFIG.UPDATE_URL, {
-      method: 'POST',
-      body: formDataToSend
-    })
+    if (error) throw error
 
-    return await response.json()
+    return { success: true, data }
+  } catch (err) {
+    console.error("Error updating task assignment:", err)
+    return { success: false, error: err.message }
   }
+}
+
 
   // ==================== EVENT HANDLERS ====================
-  const handleRefresh = () => {
-    fetchTasksFromAPI()
-  }
+const handleRefresh = () => {
+  fetchTasksFromAPI()
+  fetchTeamMembers()
+}
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
@@ -311,77 +351,78 @@ export default function TaskAssignmentSystem() {
     }))
   }
 
-  const handleSubmit = async () => {
-    // Validation
-    if (selectedTasks.size === 0) {
-      alert("Please select at least one task to assign")
-      return
-    }
-
-    const incompleteTask = Array.from(selectedTasks).find(taskId => {
-      const form = assignmentForm[taskId]
-      return !form?.assignedMember || !form?.timeRequired || !form?.remarks
-    })
-
-    if (incompleteTask) {
-      alert("Please fill all fields (Member, Time Required, Remarks) for selected tasks")
-      return
-    }
-
-    setSubmitting(true)
-
-    try {
-      let successCount = 0
-      let errorCount = 0
-
-      // Process each selected task
-      for (const taskId of selectedTasks) {
-        try {
-          const task = displayedTasks.find(t => t.id === taskId)
-          const formData = assignmentForm[taskId]
-
-          const result = await submitTaskAssignment(task, formData)
-
-          if (result.success) {
-            successCount++
-          } else {
-            errorCount++
-            console.error(`Failed to update task ${task.taskNo}:`, result.error)
-          }
-
-        } catch (taskError) {
-          errorCount++
-          console.error(`Error updating task ${taskId}:`, taskError)
-        }
-      }
-
-      // Show results
-      if (successCount > 0 && errorCount === 0) {
-        alert(`Successfully assigned ${successCount} task(s)!`)
-      } else if (successCount > 0 && errorCount > 0) {
-        alert(`Assigned ${successCount} task(s) successfully, but ${errorCount} failed. Check console for details.`)
-      } else {
-        throw new Error(`Failed to assign all ${errorCount} task(s)`)
-      }
-
-      // Reset and refresh
-      setSelectedTasks(new Set())
-      setAssignmentForm({})
-      fetchTasksFromAPI()
-
-    } catch (err) {
-      console.error("Error submitting assignments:", err)
-      alert("Error submitting assignments: " + err.message)
-    } finally {
-      setSubmitting(false)
-    }
+const handleSubmit = async () => {
+  // Validation
+  if (selectedTasks.size === 0) {
+    alert("Please select at least one task to assign")
+    return
   }
 
-  // ==================== EFFECTS ====================
-  useEffect(() => {
-    fetchTasksFromAPI()
-  }, []) // Only fetch once when component mounts
+  const incompleteTask = Array.from(selectedTasks).find(taskId => {
+    const form = assignmentForm[taskId]
+    return !form?.assignedMember   // 👈 ab sirf member name required hai
+  })
 
+  if (incompleteTask) {
+    alert("Please select Member Name for all selected tasks")
+    return
+  }
+
+  setSubmitting(true)
+
+  try {
+    let successCount = 0
+    let errorCount = 0
+
+    // Process each selected task
+    for (const taskId of selectedTasks) {
+      try {
+        const task = displayedTasks.find(t => t.task_no === taskId)
+        const formData = assignmentForm[taskId] || {}
+
+        const result = await submitTaskAssignment(task, formData)
+
+        if (result.success) {
+          successCount++
+        } else {
+          errorCount++
+          console.error(`Failed to update task ${task.taskNo}:`, result.error)
+        }
+
+      } catch (taskError) {
+        errorCount++
+        console.error(`Error updating task ${taskId}:`, taskError)
+      }
+    }
+
+    // Show results
+    if (successCount > 0 && errorCount === 0) {
+      alert(`Successfully assigned ${successCount} task(s)!`)
+    } else if (successCount > 0 && errorCount > 0) {
+      alert(`Assigned ${successCount} task(s) successfully, but ${errorCount} failed. Check console for details.`)
+    } else {
+      throw new Error(`Failed to assign all ${errorCount} task(s)`)
+    }
+
+    // Reset and refresh
+    setSelectedTasks(new Set())
+    setAssignmentForm({})
+    fetchTasksFromAPI()
+
+  } catch (err) {
+    console.error("Error submitting assignments:", err)
+    alert("Error submitting assignments: " + err.message)
+  } finally {
+    setSubmitting(false)
+  }
+}
+
+
+  // ==================== EFFECTS ====================
+ useEffect(() => {
+  fetchTasksFromAPI()
+  fetchTeamMembers()
+}, []) // Only fetch once when component mounts
   // ==================== COMPUTED VALUES ====================
   const displayedTasks = filterTasksByStatus(allTasks, activeTab) // Filter for current tab
   const pendingCount = filterTasksByStatus(allTasks, "pending").length
@@ -466,7 +507,7 @@ export default function TaskAssignmentSystem() {
                   </span>
                 </div>
                 <Button
-                  onClick={onSubmit}
+                  onClick={handleSubmit}
                   disabled={submitting}
                   className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2 w-full sm:w-auto"
                 >
@@ -530,14 +571,14 @@ export default function TaskAssignmentSystem() {
                   {/* Table Body */}
                   <tbody className="bg-white divide-y divide-gray-200">
                     {displayedTasks.map((task) => (
-                      <tr key={task.id} className="hover:bg-gray-50">
+                      <tr key={task.task_no} className="hover:bg-gray-50">
                         {/* Checkbox - Only for pending tab */}
                         {activeTab === "pending" && (
                           <td className="px-4 py-3">
                             <input
                               type="checkbox"
-                              checked={selectedTasks.has(task.id)}
-                              onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
+                              checked={selectedTasks.has(task.task_no)}
+                              onChange={(e) => handleCheckboxChange(task.task_no, e.target.checked)}
                               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
                           </td>
@@ -547,37 +588,38 @@ export default function TaskAssignmentSystem() {
                         {activeTab === "pending" && (
                           <>
                             <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="select"
-                                  value={assignmentForm[task.id]?.assignedMember || ''}
-                                  onChange={(value) => handleFormChange(task.id, 'assignedMember', value)}
-                                  options={TEAM_MEMBERS}
-                                />
+                              {selectedTasks.has(task.task_no) ? (
+                               <AssignmentInput
+  type="select"
+  value={assignmentForm[task.task_no]?.assignedMember || ''}
+  onChange={(value) => handleFormChange(task.task_no, 'assignedMember', value)}
+  options={teamMembers}
+/>
+
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="text"
-                                  value={assignmentForm[task.id]?.timeRequired || ''}
-                                  onChange={(value) => handleFormChange(task.id, 'timeRequired', value)}
-                                  placeholder="e.g., 2 hours"
-                                />
+                              {selectedTasks.has(task.task_no) ? (
+                             <AssignmentInput
+  type="text"
+  value={assignmentForm[task.task_no]?.timeRequired || ''}
+  onChange={(value) => handleFormChange(task.task_no, 'timeRequired', value)}
+  placeholder="e.g., 2 hours"
+/>
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="text"
-                                  value={assignmentForm[task.id]?.remarks || ''}
-                                  onChange={(value) => handleFormChange(task.id, 'remarks', value)}
-                                  placeholder="Add remarks"
-                                />
+                              {selectedTasks.has(task.task_no) ? (
+                               <AssignmentInput
+  type="text"
+  value={assignmentForm[task.task_no]?.remarks || ''}
+  onChange={(value) => handleFormChange(task.task_no, 'remarks', value)}
+  placeholder="Add remarks"
+/>
                               ) : (
                                 <span className="text-sm text-gray-400">-</span>
                               )}
@@ -590,12 +632,12 @@ export default function TaskAssignmentSystem() {
                           <>
                             <td className="px-4 py-3">
                               <span className="text-sm text-gray-900 font-medium">
-                                {task.assignedMember || '-'}
+                                {task.team_member_name || '-'}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <span className="text-sm text-gray-900">
-                                {task.timeRequired || '-'}
+                                {task.how_many_time_taken || '-'}
                               </span>
                             </td>
                             <td className="px-4 py-3">
@@ -652,7 +694,7 @@ export default function TaskAssignmentSystem() {
                         {activeTab === "pending" && (
                           <input
                             type="checkbox"
-                            checked={selectedTasks.has(task.id)}
+                            checked={selectedTasks.has(task.task_no)}
                             onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
@@ -665,7 +707,7 @@ export default function TaskAssignmentSystem() {
                     </div>
 
                     {/* Mobile Assignment Section - Only for pending tab */}
-                    {activeTab === "pending" && selectedTasks.has(task.id) && (
+                    {activeTab === "pending" && selectedTasks.has(task.task_no) && (
                       <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">Assign Member</label>
@@ -673,7 +715,7 @@ export default function TaskAssignmentSystem() {
                             type="select"
                             value={assignmentForm[task.id]?.assignedMember || ''}
                             onChange={(value) => handleFormChange(task.id, 'assignedMember', value)}
-                            options={TEAM_MEMBERS}
+                            options={teamMembers}
                           />
                         </div>
                         <div>

@@ -1,5 +1,10 @@
+
+
+
+
+
 // OverviewContent Component with User Role Support
-function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, userRole, companyData, userFilterData, sheetData, masterSheetData }) {
+function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, userRole, companyData, userFilterData, supabaseData }) {
   // Company filters state
   const [companyFilters, setCompanyFilters] = useState({
     typeOfWork: '',
@@ -9,10 +14,14 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
 
   // Admin filters state
   const [adminFilters, setAdminFilters] = useState({
-    priority: '',
-    systemName: ''
+    partyName: '',
+    systemName: '',
+    stage: ''
   })
 
+  const [filterMember, setFilterMember] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  
   // Filter stats based on user role
   const filteredStats = (() => {
     if (userRole === 'company') {
@@ -28,7 +37,7 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
     return stats // Show all stats for admin
   })()
 
-  // Handle company filter changes
+
   const handleCompanyFilterChange = (filterType, value) => {
     setCompanyFilters(prev => ({
       ...prev,
@@ -54,15 +63,27 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
 
   const clearAdminFilters = () => {
     setAdminFilters({
-      priority: '',
-      systemName: ''
+      partyName: '',
+      systemName: '',
+      stage: ''
     })
   }
 
-  // Filter project data for admin based on filters
+ // Filter project data for admin based on filters
   const filteredProjectData = projectData.filter(project => {
-    if (adminFilters.priority && project.priority !== adminFilters.priority) return false
+    if (adminFilters.partyName && project.partyName !== adminFilters.partyName) return false
     if (adminFilters.systemName && project.systemName !== adminFilters.systemName) return false
+    
+    // Stage filtering logic
+    if (adminFilters.stage) {
+      const hasStageMatch = 
+        (adminFilters.stage === 'Active' && (project.stage1 === 'Active' || project.stage2 === 'Active' || project.stage3 === 'Active')) ||
+        (adminFilters.stage === 'Completed' && project.currentStage === 'Completed') ||
+        (adminFilters.stage === 'Pending' && (project.stage1 === 'Pending' || project.stage2 === 'Pending' || project.stage3 === 'Pending'))
+      
+      if (!hasStageMatch) return false
+    }
+    
     return true
   })
 
@@ -72,24 +93,17 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
       {userRole === 'company' && (
         <CompanyFilters
           companyData={companyData}
-          sheetData={sheetData}
-          masterSheetData={masterSheetData}
+          supabaseData={supabaseData}
           filters={companyFilters}
           onFilterChange={handleCompanyFilterChange}
           onClearFilters={clearCompanyFilters}
         />
       )}
 
-      {/* Admin Filters at the top - Only for Admin */}
-      {userRole === 'admin' && (
-        <AdminFilters
-          projectData={projectData}
-          filters={adminFilters}
-          onFilterChange={handleAdminFilterChange}
-          onClearFilters={clearAdminFilters}
-        />
-      )}
 
+    
+
+      {/* Enhanced Stats Cards */}
       {/* Enhanced Stats Cards */}
       <div className={`grid grid-cols-1 md:grid-cols-2 ${userRole === 'user' ? 'lg:grid-cols-3' :
           userRole === 'company' ? 'lg:grid-cols-3' :
@@ -132,6 +146,7 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
           userRole={userRole}
           companyData={companyData}
           userFilterData={userFilterData}
+          supabaseData={supabaseData}
         />
       )}
 
@@ -139,249 +154,283 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
       {userRole === 'company' && (
         <CompanyTableSection
           companyData={companyData}
-          sheetData={sheetData}
-          masterSheetData={masterSheetData}
+          supabaseData={supabaseData}
           filters={companyFilters}
         />
       )}
 
-      {/* Enhanced Team Overview - Only for Admin */}
-     {userRole === 'admin' && (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-    <div className="p-6 border-b border-gray-200">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Team Overview</h2>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" className="flex items-center space-x-2 bg-transparent">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Filter</span>
-          </Button>
-          <Button variant="outline" size="sm" className="flex items-center space-x-2 bg-transparent">
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-        </div>
-      </div>
-    </div>
 
-    {/* Desktop Table View */}
-    <div className="hidden lg:block max-h-96 overflow-auto border border-gray-200 rounded-lg">
-      <table className="w-full">
-        <thead className="bg-gray-50 sticky top-0 z-10">
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Team Member
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Team Name
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Tasks
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Assign Date
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Time Spent
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Total Tasks Given
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Completion Rate
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Status
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {users && users.length > 0 ? (
-            users.map((user) => (
-              <motion.tr
-                key={user.id}
-                className="hover:bg-gray-50 transition-colors"
-                whileHover={{ backgroundColor: "#f9fafb" }}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-sm">
-                      <span className="text-white font-medium text-sm">{user.avatar}</span>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">Team Member</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{user.teamName}</div>
-                  <div className="text-xs text-gray-500">Team Name</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {user.tasksCompleted}/{user.tasksAssigned + user.tasksCompleted}
-                  </div>
-                  <div className="text-xs text-gray-500">Completed/Total</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{user.assignDate || 'No assign date'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.timeSpent}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-blue-600">{user.totalTasksGiven}</div>
-                  <div className="text-xs text-gray-500">Total assigned</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
+  {userRole === 'admin' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+          {/* Header & Filters */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              {/* Heading */}
+              <h2 className="text-xl font-semibold text-gray-900">Team Overview</h2>
+
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <select
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
+                  value={filterMember}
+                  onChange={(e) => setFilterMember(e.target.value)}
+                >
+                  <option value="">All Members</option>
+                  {[...new Set(users.map((u) => u.name))].map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-auto"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="">All Status</option>
+                  <option value="busy">Busy</option>
+                  <option value="available">Available</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+
+    {/* ------------------- Mobile Card View ------------------- */}
+    <div className="lg:hidden space-y-4 max-h-96 overflow-auto p-4">
+      {users && users.length > 0 ? (
+        users
+          .filter(
+            (user) =>
+              (filterMember ? user.name === filterMember : true) &&
+              (filterStatus ? user.status === filterStatus : true)
+          )
+          .map((user) => (
+            <div
+              key={user.id}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+            >
+              {/* Avatar + Name */}
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-white font-medium text-sm">{user.avatar}</span>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                  <div className="text-xs text-gray-500">{user.teamName}</div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="mt-3 text-sm text-gray-700 space-y-1">
+                <p>
+                  <span className="font-medium">Tasks:</span>{" "}
+                  {user.tasksCompleted}/{user.tasksAssigned + user.tasksCompleted}
+                </p>
+                <p>
+                  <span className="font-medium">Assign Date:</span>{" "}
+                  {user.assignDate || "No assign date"}
+                </p>
+                <p>
+                  <span className="font-medium">Time Spent:</span> {user.timeSpent}
+                </p>
+                <div className="flex items-center">
+                  <span className="font-medium">Completion Rate:</span>
+                  <div className="flex items-center ml-2">
                     <div className="w-16 bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full"
                         style={{ width: `${user.completionRate}%` }}
                       ></div>
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">{user.completionRate}%</span>
+                    <span className="ml-2 text-sm text-gray-600">
+                      {user.completionRate}%
+                    </span>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                </div>
+                <p>
+                  <span className="font-medium">Status:</span>
                   <span
-                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${user.status === "busy" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                      }`}
+                    className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
+                      user.status === "busy"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
                   >
                     {user.status}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => onViewUser(user)}
-                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                </p>
+              </div>
+            </div>
+          ))
+      ) : (
+        <p className="text-center text-gray-500">
+          No team members found in sheet data
+        </p>
+      )}
+    </div>
+
+    {/* ------------------- Desktop Table View ------------------- */}
+    <div className="hidden lg:block max-h-96 overflow-auto border border-gray-200 rounded-lg">
+      <table className="w-full">
+        <thead className="bg-gray-50 sticky top-0 z-10">
+          <tr>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Team Member
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Team Name
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Tasks
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Assign Date
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Time Spent
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Completion Rate
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {users && users.length > 0 ? (
+            users
+              .filter(
+                (user) =>
+                  (filterMember ? user.name === filterMember : true) &&
+                  (filterStatus ? user.status === filterStatus : true)
+              )
+              .map((user) => (
+                <motion.tr
+                  key={user.id}
+                  className="hover:bg-gray-50 transition-colors"
+                  whileHover={{ backgroundColor: "#f9fafb" }}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-white font-medium text-sm">
+                          {user.avatar}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </div>
+                        <div className="text-sm text-gray-500">Team Member</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.teamName}
+                    </div>
+                    <div className="text-xs text-gray-500">Team Name</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {user.tasksCompleted}/{user.tasksAssigned + user.tasksCompleted}
+                    </div>
+                    <div className="text-xs text-gray-500">Completed/Total</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {user.assignDate || "No assign date"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {user.timeSpent}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full"
+                          style={{ width: `${user.completionRate}%` }}
+                        ></div>
+                      </div>
+                      <span className="ml-2 text-sm text-gray-600">
+                        {user.completionRate}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                        user.status === "busy"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
                     >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 transition-colors">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </motion.tr>
-            ))
+                      {user.status}
+                    </span>
+                  </td>
+                </motion.tr>
+              ))
           ) : (
             <tr>
-              <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
+              <td
+                colSpan="7"
+                className="px-6 py-4 text-center text-gray-500"
+              >
                 No team members found in sheet data
               </td>
             </tr>
           )}
         </tbody>
       </table>
-    </div>
-
-    {/* Mobile Card View */}
-    <div className="lg:hidden max-h-96 overflow-auto">
-      {users && users.length > 0 ? (
-        <div className="space-y-4 p-4">
-          {users.map((user) => (
-            <motion.div
-              key={user.id}
-              className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-              whileHover={{ backgroundColor: "#f3f4f6" }}
-            >
-              {/* Header with Avatar and Name */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-sm">
-                    <span className="text-white font-medium text-xs">{user.avatar}</span>
-                  </div>
-                  <div className="ml-3">
-                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                    <div className="text-xs text-gray-500">{user.teamName}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => onViewUser(user)}
-                    className="text-blue-600 hover:text-blue-900 transition-colors p-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button className="text-green-600 hover:text-green-900 transition-colors p-1">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <div className="mb-3">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${user.status === "busy" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                    }`}
-                >
-                  {user.status}
-                </span>
-              </div>
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">Tasks</div>
-                  <div className="text-gray-900 font-medium">
-                    {user.tasksCompleted}/{user.tasksAssigned + user.tasksCompleted}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">Time Spent</div>
-                  <div className="text-gray-900">{user.timeSpent}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">Total Tasks</div>
-                  <div className="text-blue-600 font-medium">{user.totalTasksGiven}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">Assign Date</div>
-                  <div className="text-gray-900">{user.assignDate || 'No assign date'}</div>
-                </div>
-              </div>
-
-              {/* Completion Rate */}
-              <div className="mt-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Completion Rate</div>
-                <div className="flex items-center">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full"
-                      style={{ width: `${user.completionRate}%` }}
-                    ></div>
-                  </div>
-                  <span className="ml-2 text-sm text-gray-600">{user.completionRate}%</span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="p-6 text-center text-gray-500">
-          No team members found in sheet data
-        </div>
-      )}
+     
+{users && users.length === 0 && (
+  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+    <p className="text-yellow-800">No team members found. Check console for details.</p>
+    <button 
+      onClick={() => console.log('Sheet data:', sheetData)} 
+      className="mt-2 text-sm text-yellow-600 underline"
+    >
+      Log Sheet Data
+    </button>
+  </div>
+)}
     </div>
   </div>
 )}
 
+
       {/* Project Stages Overview Table - Only for Admin */}
-    {userRole === 'admin' && (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-    <div className="p-6 border-b border-gray-200">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Project Stages Overview</h2>
-          <p className="text-gray-600 hidden sm:block">Track project progress through different stages</p>
-        </div>
-      </div>
-    </div>
+ {userRole === 'admin' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              {/* Left Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Project Stages Overview
+                </h2>
+                <p className="text-gray-600">
+                  Track project progress through different stages
+                </p>
+              </div>
+
+              {/* Right Section - Admin Filters */}
+              <div className="flex-shrink-0 w-full sm:w-auto">
+                <adminFilters
+                  projectData={projectData}
+                  filters={adminFilters}
+                  onFilterChange={handleAdminFilterChange}
+                  onClearFilters={clearAdminFilters}
+                />
+              </div>
+            </div>
+          </div>
+
+
 
     {/* Desktop Table View */}
     <div className="hidden lg:block max-h-96 overflow-auto border border-gray-200 rounded-lg">
@@ -495,7 +544,7 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
     </div>
 
     {/* Mobile Card View */}
-    <div className="lg:hidden max-h-96 overflow-auto">
+ <div className="lg:hidden max-h-96 overflow-auto">
       {filteredProjectData && filteredProjectData.length > 0 ? (
         <div className="space-y-4 p-4">
           {filteredProjectData.map((project) => (
@@ -506,27 +555,57 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
             >
               {/* Project Header */}
               <div className="mb-3">
-                <h3 className="text-sm font-medium text-gray-900 mb-1">{project.descriptionOfWork}</h3>
-                <div className="text-xs text-gray-500">{project.systemName}</div>
+                <h3 
+                  className="text-sm font-medium text-gray-900 mb-1 truncate" 
+                  title={project.descriptionOfWork}
+                >
+                  {project.descriptionOfWork}
+                </h3>
+                <div 
+                  className="text-xs text-gray-500 truncate" 
+                  title={project.systemName}
+                >
+                  {project.systemName}
+                </div>
               </div>
 
               {/* Project Info Grid */}
               <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wider">Party Name</div>
-                  <div className="text-gray-900 font-medium">{project.partyName}</div>
+                  <div 
+                    className="text-gray-900 font-medium truncate" 
+                    title={project.partyName}
+                  >
+                    {project.partyName}
+                  </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wider">Taken From</div>
-                  <div className="text-gray-900">{project.takenFrom}</div>
+                  <div 
+                    className="text-gray-900 truncate" 
+                    title={project.takenFrom}
+                  >
+                    {project.takenFrom}
+                  </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wider">Type Of Work</div>
-                  <div className="text-gray-900">{project.typeOfWork}</div>
+                  <div 
+                    className="text-gray-900 truncate" 
+                    title={project.typeOfWork}
+                  >
+                    {project.typeOfWork}
+                  </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wider">Posted By</div>
-                  <div className="text-gray-900">{project.postedBy}</div>
+                  <div 
+                    className="text-gray-900 truncate" 
+                    title={project.postedBy}
+                  >
+                    {project.postedBy}
+                  </div>
                 </div>
               </div>
 
@@ -534,41 +613,44 @@ function OverviewContent({ users, stats, activeTasks, onViewUser, projectData, u
               <div>
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Project Stages</div>
                 <div className="flex justify-between items-center space-x-2">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-500 mb-1">Stage 1</div>
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full w-full justify-center ${project.stage1 === 'Active'
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full w-full justify-center truncate ${project.stage1 === 'Active'
                         ? 'bg-blue-100 text-blue-800'
                         : project.stage1 === 'Completed'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
+                      title={project.stage1}
                     >
                       {project.stage1}
                     </span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-500 mb-1">Stage 2</div>
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full w-full justify-center ${project.stage2 === 'Active'
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full w-full justify-center truncate ${project.stage2 === 'Active'
                         ? 'bg-blue-100 text-blue-800'
                         : project.stage2 === 'Completed'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
+                      title={project.stage2}
                     >
                       {project.stage2}
                     </span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-500 mb-1">Stage 3</div>
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full w-full justify-center ${project.stage3 === 'Active'
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full w-full justify-center truncate ${project.stage3 === 'Active'
                         ? 'bg-blue-100 text-blue-800'
                         : project.stage3 === 'Completed'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
+                      title={project.stage3}
                     >
                       {project.stage3}
                     </span>
@@ -596,86 +678,179 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
   const [selectedUser, setSelectedUser] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
   const [userModalTab, setUserModalTab] = useState("pending")
-  const [sheetData, setSheetData] = useState(null)
-  const [masterSheetData, setMasterSheetData] = useState(null)
+  const [supabaseData, setSupabaseData] = useState([])
   const [teamMembers, setTeamMembers] = useState([])
   const [projectData, setProjectData] = useState([])
-  const [statsData, setStatsData] = useState({
-    totalTasks: 0,
-    activeTasks: 0,
-    completedToday: 0,
-    pendingIssues: 0
-  })
   const [loading, setLoading] = useState(true)
+  const [totalTask, setTotalTask] = useState(0);
+  const [pendingTask, setPendingTask] = useState(0);
+  const [completeTask, setCompleteTask] = useState(0);
 
-  // ENHANCED: User role determination with proper user filtering
   const userRole = determineUserRole(username, userFilterData, companyData)
 
   // Debug user role determination
   console.log('Final userRole determined:', userRole)
   console.log('UserFilterData for role determination:', userFilterData)
 
-  // Fetch sheet data on component mount
-  useEffect(() => {
-    const loadSheetData = async () => {
-      setLoading(true)
-
+  
+ useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      
       try {
-        console.log('Starting data load...')
-        console.log('User Role:', userRole)
-        console.log('Company Data:', companyData)
-        console.log('User Filter Data:', userFilterData)
+        // Fetch FMS data from Supabase
+        const data = await fetchSupabaseData();
+        setSupabaseData(data);
 
-        // Fetch FMS sheet data
-        const data = await fetchSheetData()
+        // Process team data
+        const processedTeamMembers = processTeamDataFromSupabase(data, userRole);
+        setTeamMembers(processedTeamMembers);
 
-        // Fetch Master Sheet Link data for company filtering - ALWAYS fetch for company role
-        let masterData = null
-        if ((userRole === 'company' || userRole === 'admin') && companyData) {
-          console.log('Fetching Master Sheet Link for company:', companyData.companyName)
-          masterData = await fetchMasterSheetLinkData()
-          setMasterSheetData(masterData)
-          console.log('Master Sheet Link data loaded:', masterData ? masterData.length : 0, 'rows')
-        } else if (userRole === 'company') {
-          // Try to fetch Master Sheet Link even without companyData
-          console.log('Trying to fetch Master Sheet Link for company role')
-          masterData = await fetchMasterSheetLinkData()
-          setMasterSheetData(masterData)
-          console.log('Master Sheet Link data loaded:', masterData ? masterData.length : 0, 'rows')
-        }
+        // Process project data
+        const processedProjectData = processProjectData(data, userRole);
+        setProjectData(processedProjectData);
 
-        if (data) {
-          setSheetData(data)
-          console.log('FMS Sheet data loaded:', data.length, 'rows')
+        // Calculate task counts
+        await fetchTaskCounts();
 
-          // ENHANCED: Pass userFilterData to calculateStats for proper user filtering
-          const calculatedStats = calculateStats(data, userRole, companyData, masterData, userFilterData)
-          console.log('Calculated stats for role', userRole, ':', calculatedStats)
-          setStatsData(calculatedStats)
-
-          // Process team data (only for admin)
-          const processedTeamMembers = processTeamData(data, userRole)
-          setTeamMembers(processedTeamMembers)
-
-          // Process project data (only for admin)
-          const processedProjectData = processProjectData(data, userRole)
-          setProjectData(processedProjectData)
-        }
       } catch (error) {
-        console.error('Error loading sheet data:', error)
+        console.error("Error fetching data from Supabase:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadSheetData()
-  }, [userRole, companyData, userFilterData]) // Added userFilterData as dependency
+    fetchData();
+  }, [userRole, companyData, userFilterData]);
+
+//  const fetchTaskCounts = async () => {
+//     try {
+//       // Build base query
+//       let baseQuery = supabase.from("FMS").select("*", { count: "exact", head: true });
+
+//       if (userRole === "company" && companyData?.companyName) {
+//         baseQuery = baseQuery.eq("party_name", companyData.companyName);
+//       } else if (userRole === "user" && userFilterData?.username) {
+//         baseQuery = baseQuery.eq("employee_name_1", userFilterData.username);
+//       }
+
+//       // Total tasks
+//       const { count: totalCount, error: totalError } = await baseQuery;
+//       if (totalError) throw totalError;
+//       setTotalTask(totalCount || 0);
+
+//       // Pending tasks (actual3 is null)
+//       let pendingQuery = supabase.from("FMS").select("*", { count: "exact", head: true }).is("actual3", null);
+//       if (userRole === "company" && companyData?.companyName) {
+//         pendingQuery = pendingQuery.eq("party_name", companyData.companyName);
+//       } else if (userRole === "user" && userFilterData?.username) {
+//         pendingQuery = pendingQuery.eq("employee_name_1", userFilterData.username);
+//       }
+//       const { count: pendingCount, error: pendingError } = await pendingQuery;
+//       if (pendingError) throw pendingError;
+//       setPendingTask(pendingCount || 0);
+
+//       // Completed tasks (actual3 is not null)
+//       let completeQuery = supabase.from("FMS").select("*", { count: "exact", head: true }).not("actual3", "is", null);
+//       if (userRole === "company" && companyData?.companyName) {
+//         completeQuery = completeQuery.eq("party_name", companyData.companyName);
+//       } else if (userRole === "user" && userFilterData?.username) {
+//         completeQuery = completeQuery.eq("employee_name_1", userFilterData.username);
+//       }
+//       const { count: completeCount, error: completeError } = await completeQuery;
+//       if (completeError) throw completeError;
+//       setCompleteTask(completeCount || 0);
+
+//     } catch (error) {
+//       console.error("Error fetching task counts:", error);
+//     }
+//   };
+
+  
+
+  // ENHANCED: User role determination with proper user filtering
+ 
+  // Fetch sheet data on component mount
+useEffect(() => {
+  const loadSheetData = async () => {
+    setLoading(true);
+    try {
+      console.log("Starting data load for Team Overview...");
+      const data = await fetchSheetData();
+      console.log("Fetched sheet data:", data);
+
+      if (data && data.length > 0) {
+        
+        setSheetData(data);
+
+        const processedTeamMembers = processTeamData(data, userRole);
+        const processedProjectData=processProjectData(data,userRole);
+        console.log("Processed team members:", processedTeamMembers);
+        setTeamMembers(processedTeamMembers);
+        setProjectData(processedProjectData);
+      } else {
+        console.warn("No rows returned from FMS table");
+      }
+    } catch (error) {
+      console.error("Error loading sheet data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadSheetData();
+}, [userRole]);
+
+
+  // Fetch task counts from Supabase
+  const fetchTaskCounts = async () => {
+    try {
+      // Build base query
+      let baseQuery = supabase.from("FMS").select("*", { count: "exact", head: true });
+
+      if (userRole === "company" && companyData?.companyName) {
+        baseQuery = baseQuery.eq("party_name", companyData.companyName);
+      } else if (userRole === "user" && userFilterData?.username) {
+        baseQuery = baseQuery.eq("employee_name_1", userFilterData.username);
+      }
+
+      // Total tasks
+      const { count: totalCount, error: totalError } = await baseQuery;
+      if (totalError) throw totalError;
+      setTotalTask(totalCount || 0);
+
+      // Pending tasks (actual3 is null)
+      let pendingQuery = supabase.from("FMS").select("*", { count: "exact", head: true }).is("actual3", null);
+      if (userRole === "company" && companyData?.companyName) {
+        pendingQuery = pendingQuery.eq("party_name", companyData.companyName);
+      } else if (userRole === "user" && userFilterData?.username) {
+        pendingQuery = pendingQuery.eq("employee_name_1", userFilterData.username);
+      }
+      const { count: pendingCount, error: pendingError } = await pendingQuery;
+      if (pendingError) throw pendingError;
+      setPendingTask(pendingCount || 0);
+
+      // Completed tasks (actual3 is not null)
+      let completeQuery = supabase.from("FMS").select("*", { count: "exact", head: true }).not("actual3", "is", null);
+      if (userRole === "company" && companyData?.companyName) {
+        completeQuery = completeQuery.eq("party_name", companyData.companyName);
+      } else if (userRole === "user" && userFilterData?.username) {
+        completeQuery = completeQuery.eq("employee_name_1", userFilterData.username);
+      }
+      const { count: completeCount, error: completeError } = await completeQuery;
+      if (completeError) throw completeError;
+      setCompleteTask(completeCount || 0);
+
+    } catch (error) {
+      console.error("Error fetching task counts:", error);
+    }
+  };
 
   // Create stats array with actual data
   const stats = [
     {
       label: "Total Tasks",
-      value: loading ? "..." : statsData.totalTasks.toString(),
+      value: loading ? "..." : totalTask.toString(),
       icon: Users,
       color: "from-blue-500 to-blue-600",
       change: "+2 this month",
@@ -684,7 +859,7 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
     },
     {
       label: "Active Tasks",
-      value: loading ? "..." : statsData.activeTasks.toString(),
+      value: loading ? "..." :pendingTask.toString(),
       icon: Clock,
       color: "from-orange-500 to-orange-600",
       change: "+5 today",
@@ -693,7 +868,7 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
     },
     {
       label: "Completed Today",
-      value: loading ? "..." : statsData.completedToday.toString(),
+      value: loading ? "..." : completeTask.toString(),
       icon: CheckCircle,
       color: "from-green-500 to-green-600",
       change: "+12% vs yesterday",
@@ -702,7 +877,7 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
     },
     {
       label: "Pending Issues",
-      value: loading ? "..." : statsData.pendingIssues.toString(),
+      value: loading ? "..." : pendingTask.toString(),
       icon: AlertTriangle,
       color: "from-red-500 to-red-600",
       change: "-2 resolved",
@@ -711,7 +886,7 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
     },
   ]
 
-  const handleTaskCreated = (newTasks) => {
+    const handleTaskCreated = (newTasks) => {
     setTasks((prev) => [...prev, ...newTasks])
   }
 
@@ -734,13 +909,11 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
             userRole={userRole}
             companyData={companyData}
             userFilterData={userFilterData}
-            sheetData={sheetData}
-            masterSheetData={masterSheetData}
+            supabaseData={supabaseData}
           />
         )
       case "assign-task": {
         console.log('Assign Task - Using userRole:', userRole)
-
         return (
           <AssignTaskForm
             userRole={userRole}
@@ -757,12 +930,14 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
           type="pending"
           userFilterData={userFilterData}
           companyData={companyData}
+          supabaseData={supabaseData}
         />
       case "completed-tasks":
         return <TaskList
           type="completed"
           userFilterData={userFilterData}
           companyData={companyData}
+          supabaseData={supabaseData}
         />
       case "troubleshoot":
         return <TroubleShootPage />
@@ -770,6 +945,7 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
         return <SystemsList
           userRole={userRole}
           companyData={companyData}
+          supabaseData={supabaseData}
         />
       default:
         return (
@@ -782,12 +958,12 @@ export default function AdminDashboard({ onLogout, username, pagination, activeT
             userRole={userRole}
             companyData={companyData}
             userFilterData={userFilterData}
-            sheetData={sheetData}
-            masterSheetData={masterSheetData}
+            supabaseData={supabaseData}
           />
         )
     }
   }
+
 
   return (
     <div className="space-y-6">
@@ -932,956 +1108,580 @@ import SystemsList from "./SystemsList"
 import TasksTable from "./TaskTable"
 import DashboardCharts from "./DashboardCharts"
 import DeveloperStagePage from "./DeveloperStagePage"
+import supabase from "../../supabaseClient"
 
-// Function to fetch data from Google Sheets
-const fetchSheetData = async () => {
+
+// Fetch data from Supabase
+const fetchSupabaseData = async () => {
   try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS')
+    // Query all rows from FMS table
+    const { data, error } = await supabase
+      .from("FMS")
+      .select("*")
+   
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+    if (error) throw error;
 
-    const data = await response.json()
-
-    // Handle different response formats
-    if (data && typeof data === 'object') {
-      if (data.data && Array.isArray(data.data)) {
-        return data.data
-      }
-      if (data.FMS && Array.isArray(data.FMS)) {
-        return data.FMS
-      }
-      if (Array.isArray(data)) {
-        return data
-      }
-      if (data.values && Array.isArray(data.values)) {
-        return data.values
-      }
-    }
-
-    return data
+    // Ensure array response
+    return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error('Error fetching sheet data:', error)
-    return null
+    console.error("Error fetching Supabase FMS data:", error);
+    return [];
   }
-}
+};
 
-// Function to fetch Master Sheet Link data for company matching
-const fetchMasterSheetLinkData = async () => {
-  try {
-    const payload = new URLSearchParams()
-    payload.append("action", "getMasterSheetData")
-    payload.append("sheet", "Master Sheet Link")
-
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      }
-    )
-
-    const data = await response.json()
-    return data.success ? data.data : null
-  } catch (error) {
-    // Fallback: try GET method with sheet parameter
-    try {
-      const timestamp = new Date().getTime()
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master Sheet Link&timestamp=${timestamp}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return data.success ? data.data : null
-    } catch (fallbackError) {
-      console.error("Error fetching Master Sheet Link data:", fallbackError)
-      return null
-    }
-  }
-}
-
-// Function to get party names that match the logged-in company
-const getCompanyPartyNames = (companyName, masterSheetData) => {
-  if (!companyName || !masterSheetData || !Array.isArray(masterSheetData)) {
-    console.log('Missing data for company matching:')
-    console.log('  - Company Name:', companyName)
-    console.log('  - Master Sheet Data:', masterSheetData ? 'Available' : 'Missing')
-    console.log('  - Is Array:', Array.isArray(masterSheetData))
-    return []
-  }
-
-  console.log('Looking for company:', companyName)
-  console.log('Master Sheet data rows:', masterSheetData.length)
-
-  const matchingParties = []
-
-  // Skip header row (start from index 1)
-  for (let i = 1; i < masterSheetData.length; i++) {
-    const row = masterSheetData[i]
-    if (!row || !Array.isArray(row)) continue
-
-    const companyNameInSheet = row[2] ? row[2].toString().trim() : '' // Column C (index 2)
-
-    if (companyNameInSheet.toLowerCase() === companyName.toLowerCase()) {
-      console.log('Found matching company in Master Sheet Link:', companyNameInSheet)
-
-      // Check multiple columns for potential party names
-      const possiblePartyColumns = [2, 6, 7, 8] // Column C, G, H, I
-
-      for (const colIndex of possiblePartyColumns) {
-        if (row[colIndex]) {
-          const partyName = row[colIndex].toString().trim()
-          if (partyName && !matchingParties.includes(partyName)) {
-            matchingParties.push(partyName)
-            console.log(`Added party name: "${partyName}" from column ${colIndex} for company "${companyName}"`)
-          }
-        }
-      }
-
-      // If no specific party mapping found, use company name as party name
-      if (matchingParties.length === 0) {
-        matchingParties.push(companyNameInSheet)
-        console.log(`Using company name "${companyNameInSheet}" as party name`)
-      }
-    }
-  }
-
-  console.log('Final matching parties:', matchingParties)
-  return matchingParties
-}
-
-// Enhanced user role determination
+// Enhanced user role determination (unchanged)
 const determineUserRole = (username, userFilterData, companyData) => {
-  console.log('Enhanced Role Determination:')
-  console.log('  - username:', username)
-  console.log('  - userFilterData:', userFilterData)
-  console.log('  - companyData:', companyData)
+  console.log('Enhanced Role Determination:');
+  console.log('  - username:', username);
+  console.log('  - userFilterData:', userFilterData);
+  console.log('  - companyData:', companyData);
 
   // Method 1: Check if username is admin (highest priority)
   if (username === 'admin') {
-    console.log('  Admin detected via username')
-    return 'admin'
+    console.log('  Admin detected via username');
+    return 'admin';
   }
 
   // Method 2: Check userFilterData.isAdmin
   if (userFilterData?.isAdmin === true) {
-    console.log('  Admin detected via userFilterData.isAdmin')
-    return 'admin'
+    console.log('  Admin detected via userFilterData.isAdmin');
+    return 'admin';
   }
 
   // Method 3: Check for company data (company login)
   if (companyData && companyData.companyName && !userFilterData?.username) {
-    console.log('  Company detected via companyData')
-    return 'company'
+    console.log('  Company detected via companyData');
+    return 'company';
   }
 
   // Method 4: Check if user has individual user data (individual user login)
   if (userFilterData && (userFilterData.username || userFilterData.name || userFilterData.memberName)) {
-    console.log('  Individual user detected via userFilterData')
-    return 'user'
+    console.log('  Individual user detected via userFilterData');
+    return 'user';
   }
 
   // Method 5: Check session storage for role
   if (typeof window !== 'undefined') {
     try {
-      const session = sessionStorage.getItem('userSession')
+      const session = sessionStorage.getItem('userSession');
       if (session) {
-        const userData = JSON.parse(session)
+        const userData = JSON.parse(session);
         if (userData.role === 'admin') {
-          console.log('  Admin detected via session storage')
-          return 'admin'
+          console.log('  Admin detected via session storage');
+          return 'admin';
         }
         if (userData.role === 'company') {
-          console.log('  Company detected via session storage')
-          return 'company'
+          console.log('  Company detected via session storage');
+          return 'company';
         }
         if (userData.role === 'user') {
-          console.log('  User detected via session storage')
-          return 'user'
+          console.log('  User detected via session storage');
+          return 'user';
         }
       }
     } catch (error) {
-      console.log('  Error reading session storage:', error)
+      console.log('  Error reading session storage:', error);
     }
   }
 
   // Default to user if we have user data, otherwise admin
-  const defaultRole = userFilterData ? 'user' : 'admin'
-  console.log('  Defaulting to role:', defaultRole)
-  return defaultRole
-}
+  const defaultRole = userFilterData ? 'user' : 'admin';
+  console.log('  Defaulting to role:', defaultRole);
+  return defaultRole;
+};
 
-// Enhanced calculateStats function with user role filtering - SUPPORTS BOTH COLUMN X AND Y
-const calculateStats = (sheetData, userRole = 'admin', companyData = null, masterSheetData = null, userFilterData = null) => {
-  if (!sheetData || !Array.isArray(sheetData)) {
+// Calculate stats from Supabase data
+const calculateStatsFromSupabase = (supabaseData, userRole = 'admin', companyData = null, userFilterData = null) => {
+  if (!supabaseData || !Array.isArray(supabaseData)) {
     return {
       totalTasks: 0,
       activeTasks: 0,
       completedToday: 0,
       pendingIssues: 0
-    }
+    };
   }
 
-  // Find header row and Task No. column
-  let headerRowIndex = -1
-  let taskNoColumnIndex = -1
+  console.log('Starting data filtering for role:', userRole);
+  console.log('Total rows before filtering:', supabaseData.length);
 
-  // Search for "Task No." header in first few rows
-  for (let i = 0; i < Math.min(10, sheetData.length); i++) {
-    const row = sheetData[i]
-    if (Array.isArray(row)) {
-      for (let j = 0; j < row.length; j++) {
-        const cell = row[j]
-        if (cell && typeof cell === 'string') {
-          if (cell.toLowerCase().includes('task no') || cell.toLowerCase() === 'task no.') {
-            headerRowIndex = i
-            taskNoColumnIndex = j
-            break
-          }
-        }
-      }
-      if (headerRowIndex !== -1) break
-    }
-  }
-
-  // If not found, use default positions
-  if (headerRowIndex === -1) {
-    if (sheetData.length > 5 && sheetData[5] && sheetData[5][1]) {
-      headerRowIndex = 5
-      taskNoColumnIndex = 1
-    } else {
-      headerRowIndex = 0
-      taskNoColumnIndex = 1
-    }
-  }
-
-  // Column mappings: A=0, B=1, ..., G=6, R=17, AB=27, AC=28
-  const columnGIndex = 6  // Party Name (Column G)
-  const columnRIndex = 17 // Team/Member Name (Column R)
-  const columnABIndex = 27 // Column AB
-  const columnACIndex = 28 // Column AC
-
-  // Get data rows (skip header and rows before data)
-  const dataStartRow = Math.max(headerRowIndex + 1, 6)
-  let dataRows = sheetData.slice(dataStartRow)
-
-  console.log('Starting data filtering for role:', userRole)
-  console.log('Total rows before filtering:', dataRows.length)
+  let filteredData = [...supabaseData];
 
   // Filter data based on user role
   if (userRole === 'company' && companyData && companyData.companyName) {
-    console.log('Filtering data for company:', companyData.companyName)
-
-    // Get matching party names from Master Sheet Link
-    const matchingPartyNames = getCompanyPartyNames(companyData.companyName, masterSheetData)
-    console.log('Matching party names found:', matchingPartyNames)
-
-    if (matchingPartyNames.length > 0) {
-      const originalLength = dataRows.length
-      dataRows = dataRows.filter(row => {
-        if (!row || row.length <= columnGIndex) return false
-
-        const partyName = row[columnGIndex] ? row[columnGIndex].toString().trim() : ''
-
-        // Check if party name matches any of the company's party names
-        const matches = matchingPartyNames.some(companyParty =>
-          partyName.toLowerCase() === companyParty.toLowerCase()
-        )
-
-        return matches
-      })
-
-      console.log(`After company filtering: ${dataRows.length} tasks found (from ${originalLength} total)`)
-    } else {
-      // Fallback: direct company name matching
-      console.log('No party names found, trying direct company name matching')
-      const originalLength = dataRows.length
-      dataRows = dataRows.filter(row => {
-        if (!row || row.length <= columnGIndex) return false
-
-        const partyName = row[columnGIndex] ? row[columnGIndex].toString().trim().toLowerCase() : ''
-        const companyNameLower = companyData.companyName.toLowerCase()
-
-        return partyName === companyNameLower
-      })
-
-      console.log(`Fallback filtering: ${dataRows.length} tasks found (from ${originalLength} total)`)
-    }
+    console.log('Filtering data for company:', companyData.companyName);
+    
+    filteredData = filteredData.filter(item => 
+      item.party_name && item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+    );
+    
+    console.log(`After company filtering: ${filteredData.length} tasks found`);
   }
   else if (userRole === 'user' && userFilterData) {
-    console.log('Filtering data for user:', userFilterData)
+    console.log('Filtering data for user:', userFilterData);
 
-    const originalLength = dataRows.length
-
-    // Get username (already working)
-    let userName = null
+    let userName = null;
     if (userFilterData.username) {
-      userName = userFilterData.username
+      userName = userFilterData.username;
     } else if (userFilterData.name) {
-      userName = userFilterData.name
+      userName = userFilterData.name;
     } else if (userFilterData.memberName) {
-      userName = userFilterData.memberName
-    } else if (userFilterData.userRowData && userFilterData.userRowData[23]) {
-      userName = userFilterData.userRowData[23].toString().trim()
-    } else if (userFilterData.userRowData && userFilterData.userRowData[24]) {
-      userName = userFilterData.userRowData[24].toString().trim()
+      userName = userFilterData.memberName;
     }
 
-    console.log('Final username for filtering:', userName)
+    console.log('Final username for filtering:', userName);
 
     if (userName && userName !== 'undefined' && userName !== 'Unknown User') {
-      console.log('Looking for user in BOTH Column X and Column Y:', userName)
-
-      // UPDATED LOGIC: Check BOTH Column X (index 23) AND Column Y (index 24)
-      dataRows = dataRows.filter(row => {
-        if (!row || row.length <= 24) return false // Check both columns exist
-
-        const columnXValue = row[23] ? row[23].toString().trim() : '' // Column X (assigned user)
-        const columnYValue = row[24] ? row[24].toString().trim() : '' // Column Y (alternate assignment)
+      filteredData = filteredData.filter(item => {
+        const employeeName1 = item.employee_name_1 ? item.employee_name_1.toString().trim().toLowerCase() : '';
+        const employeeName2 = item.employee_name_2 ? item.employee_name_2.toString().trim().toLowerCase() : '';
+        const userNameLower = userName.toLowerCase();
         
-        // Check if user matches EITHER Column X OR Column Y
-        const matchesColumnX = columnXValue.toLowerCase() === userName.toLowerCase()
-        const matchesColumnY = columnYValue.toLowerCase() === userName.toLowerCase()
-        
-        const matches = matchesColumnX || matchesColumnY
-
-        if (matches) {
-          console.log('Found task for user:', userName)
-          console.log('  - Column X Value:', columnXValue)
-          console.log('  - Column Y Value:', columnYValue)
-          console.log('  - Matched in:', matchesColumnX ? 'Column X' : 'Column Y')
-          console.log('  - Task:', row[taskNoColumnIndex])
-          console.log('  - Team Member (Column R):', row[columnRIndex] || 'N/A')
-          console.log('  - Description:', row[8] ? row[8].toString().slice(0, 50) + '...' : 'N/A')
-          console.log('  - Column AB:', row[columnABIndex] || 'Empty')
-          console.log('  - Column AC:', row[columnACIndex] || 'Empty')
-        }
-
-        return matches
-      })
-
-      console.log(`After Column X & Y filtering: ${dataRows.length} tasks found for user "${userName}" (from ${originalLength} total)`)
-
-      // Debug if no matches found
-      if (dataRows.length === 0) {
-        console.log('No tasks found in Column X or Y. Checking available values:')
-        
-        // Check Column X values
-        console.log('Column X values:')
-        const allColumnXValues = [...new Set(sheetData.slice(dataStartRow)
-          .map(row => row[23] ? row[23].toString().trim() : '')
-          .filter(name => name !== ''))]
-
-        allColumnXValues.slice(0, 10).forEach((value, idx) => {
-          const isMatch = value.toLowerCase() === userName.toLowerCase()
-          console.log(`  ${idx + 1}. "${value}" ${isMatch ? '← MATCH!' : ''}`)
-        })
-
-        // Check Column Y values
-        console.log('Column Y values:')
-        const allColumnYValues = [...new Set(sheetData.slice(dataStartRow)
-          .map(row => row[24] ? row[24].toString().trim() : '')
-          .filter(name => name !== ''))]
-
-        allColumnYValues.slice(0, 10).forEach((value, idx) => {
-          const isMatch = value.toLowerCase() === userName.toLowerCase()
-          console.log(`  ${idx + 1}. "${value}" ${isMatch ? '← MATCH!' : ''}`)
-        })
-
-        console.log(`Total unique Column X values: ${allColumnXValues.length}`)
-        console.log(`Total unique Column Y values: ${allColumnYValues.length}`)
-      }
+        return employeeName1 === userNameLower || employeeName2 === userNameLower;
+      });
+      
+      console.log(`After user filtering: ${filteredData.length} tasks found for user "${userName}"`);
     } else {
-      console.log('No valid username found for filtering')
-      dataRows = []
+      console.log('No valid username found for filtering');
+      filteredData = [];
     }
   }
 
-  console.log('Final filtered rows count:', dataRows.length)
+  console.log('Final filtered rows count:', filteredData.length);
 
   const stats = {
-    // Total Tasks: Count all rows with data in Task No. column (filtered by user role)
-    totalTasks: dataRows.filter(row => {
-      const hasTaskNo = row && row.length > taskNoColumnIndex &&
-        row[taskNoColumnIndex] &&
-        row[taskNoColumnIndex].toString().trim() !== ''
+    // Total Tasks: Count all rows
+    totalTasks: filteredData.length,
 
-      if (userRole === 'user' && hasTaskNo) {
-        console.log('Counting total task:', row[taskNoColumnIndex])
-      }
+    // Active Tasks: Tasks where actual3 is null (not completed)
+    activeTasks: userRole === 'admin' ? filteredData.filter(item => 
+      !item.actual3 || item.actual3.toString().trim() === ''
+    ).length : 0,
 
-      return hasTaskNo
-    }).length,
+    // Completed Today: Count where actual3 has data (completed)
+    completedToday: filteredData.filter(item => 
+      item.actual3 && item.actual3.toString().trim() !== ''
+    ).length,
 
-    // Active Tasks: Tasks with Task No. + AB has data + AC is empty (only for admin)
-    activeTasks: userRole === 'admin' ? dataRows.filter(row => {
-      if (!row || row.length <= taskNoColumnIndex) return false
+    // Pending Issues: Same as active tasks for company/user view
+    pendingIssues: filteredData.filter(item => 
+      !item.actual3 || item.actual3.toString().trim() === ''
+    ).length
+  };
 
-      const hasTaskNo = row[taskNoColumnIndex] && row[taskNoColumnIndex].toString().trim() !== ''
-      const hasABData = row.length > columnABIndex && row[columnABIndex] && row[columnABIndex].toString().trim() !== ''
-      const acIsEmpty = row.length <= columnACIndex || !row[columnACIndex] || row[columnACIndex].toString().trim() === ''
+  console.log('Final calculated stats:', stats);
+  return stats;
+};
 
-      return hasTaskNo && hasABData && acIsEmpty
-    }).length : 0,
+// Get company table data from Supabase
+const getCompanyTableDataFromSupabase = (supabaseData, companyData) => {
+  console.log('=== getCompanyTableDataFromSupabase ===');
+  console.log('supabaseData available:', !!supabaseData, 'length:', supabaseData?.length);
+  console.log('companyData:', companyData);
 
-    // Completed Today: Count where both AB and AC have data
-    completedToday: dataRows.filter(row => {
-      if (!row || row.length <= columnABIndex) return false
-
-      const abHasData = row[columnABIndex] && row[columnABIndex].toString().trim() !== ''
-      const acHasData = row.length > columnACIndex && row[columnACIndex] && row[columnACIndex].toString().trim() !== ''
-      const hasTaskNo = row[taskNoColumnIndex] && row[taskNoColumnIndex].toString().trim() !== ''
-
-      const isCompleted = hasTaskNo && abHasData && acHasData
-
-      if (userRole === 'user' && isCompleted) {
-        console.log('Counting completed task:', row[taskNoColumnIndex])
-      }
-
-      return isCompleted
-    }).length,
-
-    // Pending Issues: Count where AB has data but AC is empty
-    pendingIssues: dataRows.filter(row => {
-      if (!row || row.length <= columnABIndex) return false
-
-      const abHasData = row[columnABIndex] && row[columnABIndex].toString().trim() !== ''
-      const acIsEmpty = row.length <= columnACIndex || !row[columnACIndex] || row[columnACIndex].toString().trim() === ''
-      const hasTaskNo = row[taskNoColumnIndex] && row[taskNoColumnIndex].toString().trim() !== ''
-
-      const isPending = hasTaskNo && abHasData && acIsEmpty
-
-      if (userRole === 'user' && isPending) {
-        console.log('Counting pending task:', row[taskNoColumnIndex])
-      }
-
-      return isPending
-    }).length
+  if (!supabaseData || !Array.isArray(supabaseData) || !companyData || !companyData.companyName) {
+    console.log('Missing required data for company table');
+    return [];
   }
 
-  console.log('Final calculated stats:', stats)
-  return stats
-}
+  console.log('Getting company table data for:', companyData.companyName);
 
+  // Filter data for the company
+  const filteredData = supabaseData.filter(item => 
+    item.party_name && item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+  );
 
-// Updated getCompanyTableData function with correct FMS column mapping
-const getCompanyTableData = (sheetData, companyData, masterSheetData) => {
-  console.log('=== getCompanyTableData with FMS Column Mapping ===')
-  console.log('sheetData available:', !!sheetData, 'length:', sheetData?.length)
-  console.log('companyData:', companyData)
-  console.log('masterSheetData available:', !!masterSheetData, 'length:', masterSheetData?.length)
+  console.log('Filtered company data count:', filteredData.length);
 
-  if (!sheetData || !Array.isArray(sheetData) || !companyData || !companyData.companyName) {
-    console.log('Missing required data for company table')
-    return []
-  }
-
-  console.log('Getting company table data for:', companyData.companyName)
-
-  // Get data rows (starting from row 6 to skip headers) - FMS data
-  const dataStartRow = 6
-  let dataRows = sheetData.slice(dataStartRow)
-  console.log('Total FMS data rows before filtering:', dataRows.length)
-
-  // Filter FMS data based on logged-in company's party name (Column G = companyName)
-  // Include rows where AB has data (both In Progress and Completed)
-  const filteredFMSData = dataRows.filter(row => {
-    if (!row || row.length <= 27) return false
-
-    const partyName = row[6] ? row[6].toString().trim().toLowerCase() : '' // Column G
-    const companyNameLower = companyData.companyName.toLowerCase().trim()
-    const columnAB = row[27] ? row[27].toString().trim() : '' // Column AB
-
-    const partyMatch = partyName === companyNameLower
-    const hasABData = columnAB !== '' // Only need AB data for both In Progress and Completed
-
-    if (partyMatch && hasABData) {
-      console.log('Found matching FMS record for party:', partyName)
+  // Process and format the data
+  const tableData = filteredData.map((item, index) => {
+    // Determine status based on actual3 field
+    let status = 'Not Started';
+    if (item.actual3 && item.actual3.toString().trim() !== '') {
+      status = 'Completed';
+    } else if (item.planned3 && item.planned3.toString().trim() !== '') {
+      status = 'In Progress';
     }
 
-    return partyMatch && hasABData
-  })
-
-  console.log('Filtered FMS data count:', filteredFMSData.length)
-
-  // Process and format the data with correct FMS column mapping
-  const tableData = filteredFMSData.map((row, index) => {
-    if (!row || row.length <= 1) return null
-
-    // Determine status based on AB and AC columns (SystemsList logic)
-    const abHasData = row[27] && row[27].toString().trim() !== '' // Column AB
-    const acHasData = row[28] && row[28].toString().trim() !== '' // Column AC
-
-    let status = 'Not Started'
-    if (abHasData && acHasData) {
-      status = 'Completed'
-    } else if (abHasData && !acHasData) {
-      status = 'In Progress'
-    }
-
-    // Only include tasks that have AB data (both In Progress and Completed)
-    // Remove the status filter to show both completed and in-progress tasks
-
-    // FMS Sheet Column Mapping:
-    // A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12, N=13, O=14, P=15...
-    const taskData = {
-      id: index + 1,
-      taskNo: row[1] ? row[1].toString().trim() : '', // Column B (Task No.)
+    return {
+      id: item.id || index + 1,
+      taskNo: item.task_no || `Task-${index + 1}`,
       status: status,
-      partyName: row[6] ? row[6].toString().trim() : 'N/A', // Column G (Party Name)
-      typeOfWork: row[4] ? row[4].toString().trim() : 'N/A', // Column E (Type Of Work)
-      systemName: row[7] ? row[7].toString().trim() : 'N/A', // Column H (System Name)
-      descriptionOfWork: row[8] ? row[8].toString().trim() : 'N/A', // Column I (Description Of Work)
-      notes: row[12] ? row[12].toString().trim() : 'N/A', // Column J (Notes)
-      takenFrom: row[5] ? row[5].toString().trim() : 'N/A', // Column F (Taken From)
-      expectedDateToClose: row[13] ? row[13].toString().trim() : 'N/A', // Column AB (Expected date to close)
-      priority: row[11] ? row[11].toString().trim() : 'Normal', // Column K (Priority)
-      linkOfSystem: row[9] ? row[9].toString().trim() : 'N/A', // Column L (Link of System)
-      attachmentFile: row[10] ? row[10].toString().trim() : 'N/A', // Column M (Attachment File)
-      actualSubmitDate: row[28] ? row[28].toString().trim() : 'N/A', // Column AC (Actual Submit Date)
-    }
+      partyName: item.party_name || 'N/A',
+      typeOfWork: item.type_of_work || 'N/A',
+      systemName: item.system_name || 'N/A',
+      descriptionOfWork: item.description_of_work || 'N/A',
+      notes: item.notes || 'N/A',
+      takenFrom: item.taken_from || 'N/A',
+      expectedDateToClose: item.expected_date_to_close || 'N/A',
+      priority: item.priority_in_customer || 'Normal',
+      linkOfSystem: item.website_link || 'N/A',
+      attachmentFile: item.attachment_file || 'N/A',
+      actualSubmitDate: item.actual3 || 'N/A'
+    };
+  }).filter(item => item.taskNo !== '');
 
-    console.log('Processing task:', taskData.taskNo, 'Status:', status, 'Party:', taskData.partyName)
-    return taskData
-  }).filter(item => item !== null && item.taskNo !== '')
+  console.log('Final company table data processed:', tableData.length, 'rows');
+  console.log('Sample data:', tableData.slice(0, 2));
+  console.log('=== getCompanyTableDataFromSupabase DEBUG END ===');
 
-  console.log('Final company table data processed:', tableData.length, 'rows')
-  console.log('Sample data:', tableData.slice(0, 2))
-  console.log('=== getCompanyTableData DEBUG END ===')
+  return tableData;
+};
 
-  return tableData
-}
-// Function to calculate time difference between two dates
+// Function to calculate time difference between two dates (unchanged)
 const calculateTimeDifference = (assignDate, submitDate) => {
   if (!assignDate) {
-    return '0h 0m'
+    return '0h 0m';
   }
 
   try {
     // Parse dates - handle various date formats
     const parseDate = (dateStr) => {
-      let date = new Date(dateStr)
+      let date = new Date(dateStr);
 
       // If invalid, try parsing as DD/MM/YYYY HH:MM format
       if (isNaN(date.getTime())) {
-        const parts = dateStr.toString().trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/)
+        const parts = dateStr.toString().trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
         if (parts) {
-          const [, day, month, year, hour, minute] = parts
-          date = new Date(year, month - 1, day, hour, minute)
+          const [, day, month, year, hour, minute] = parts;
+          date = new Date(year, month - 1, day, hour, minute);
         }
       }
 
-      return date
-    }
+      return date;
+    };
 
-    const assignDateTime = parseDate(assignDate)
+    const assignDateTime = parseDate(assignDate);
 
     // If no submit date provided, use current date and time
-    let endDateTime
+    let endDateTime;
     if (!submitDate || submitDate.toString().trim() === '') {
-      endDateTime = new Date()
+      endDateTime = new Date();
     } else {
-      endDateTime = parseDate(submitDate)
+      endDateTime = parseDate(submitDate);
     }
 
     if (isNaN(assignDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-      return '0h 0m'
+      return '0h 0m';
     }
 
     // Calculate difference in milliseconds
-    const timeDifferenceMs = endDateTime.getTime() - assignDateTime.getTime()
+    const timeDifferenceMs = endDateTime.getTime() - assignDateTime.getTime();
 
     if (timeDifferenceMs < 0) {
-      return '0h 0m'
+      return '0h 0m';
     }
 
     // Convert to hours and minutes
-    const totalMinutes = Math.floor(timeDifferenceMs / (1000 * 60))
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
+    const totalMinutes = Math.floor(timeDifferenceMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
 
-    return `${hours}h ${minutes}m`
+    return `${hours}h ${minutes}m`;
   } catch (error) {
-    return '0h 0m'
+    return '0h 0m';
   }
-}
+};
+
+// Format date function (unchanged)
 const formatDateToDDMMYY = (dateInput) => {
   if (!dateInput || dateInput.toString().trim() === '') {
-    return 'No assign date'
+    return 'No assign date';
   }
 
   try {
-    let date
-    const dateStr = dateInput.toString().trim()
+    let date;
+    const dateStr = dateInput.toString().trim();
     
-    // Handle different date formats that might come from Excel
+    // Handle different date formats
     if (dateStr.includes('/')) {
-      // Already in date format like dd/mm/yyyy or mm/dd/yyyy
-      date = new Date(dateStr)
+      date = new Date(dateStr);
     } else if (dateStr.includes('-')) {
-      // Format like yyyy-mm-dd
-      date = new Date(dateStr)
+      date = new Date(dateStr);
     } else if (!isNaN(dateStr) && dateStr.length > 4) {
-      // Excel serial number format
-      const excelEpoch = new Date(1899, 11, 30) // Excel's epoch
-      const days = parseInt(dateStr)
-      date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000)
+      const excelEpoch = new Date(1899, 11, 30);
+      const days = parseInt(dateStr);
+      date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
     } else {
-      // Try to parse as is
-      date = new Date(dateStr)
+      date = new Date(dateStr);
     }
 
-    // Check if date is valid
     if (isNaN(date.getTime())) {
-      return dateStr // Return original if can't parse
+      return dateStr;
     }
 
-    // Format to dd/mm/yy
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = String(date.getFullYear()).slice(-2) // Get last 2 digits
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
 
-    return `${day}/${month}/${year}`
+    return `${day}/${month}/${year}`;
   } catch (error) {
-    console.error('Error formatting date:', error)
-    return dateInput.toString().trim()
+    console.error('Error formatting date:', error);
+    return dateInput.toString().trim();
   }
-}
+};
 
+// Process team data from Supabase
+const processTeamDataFromSupabase = (supabaseData, userRole = "admin") => {
+  console.log("=== processTeamDataFromSupabase DEBUG START ===");
+  console.log("userRole:", userRole);
 
-// Function to process sheet data for team overview (only for admin)
-const processTeamData = (sheetData, userRole = 'admin') => {
-  // Only process team data for admin
-  if (userRole !== 'admin') {
-    return []
-  }
-
-  if (!sheetData || !Array.isArray(sheetData)) {
-    return []
+  if (userRole !== "admin") {
+    console.log("Not admin role, returning empty array");
+    return [];
   }
 
-  // Default column positions
-  const columnMapping = {
-    teamMemberName: 17, // Column R (Team/Member Name)
-    assignDate: 21, // Column V (Assign date and time)
-    teamName: 31, // Column AF (Team Name)
-    columnAB: 27, // Column AB
-    columnAC: 28, // Column AC (Submit date and time)
+  if (!supabaseData || !Array.isArray(supabaseData)) {
+    console.log("No valid supabase data, returning empty array");
+    return [];
   }
 
-  // Get data rows (starting from row 6 to skip headers)
-  const dataStartRow = 6
-  const dataRows = sheetData.slice(dataStartRow)
+  console.log("Supabase data received:", supabaseData.length, "rows");
 
-  // Group data by team member
-  const teamMap = new Map()
+  const teamMap = new Map();
 
-  dataRows.forEach((row, index) => {
-    if (!row || row.length <= columnMapping.teamMemberName) return
+  supabaseData.forEach((item) => {
+    const memberName = item.employee_name_1?.trim();
+    if (!memberName) return;
 
-    const teamMemberName = row[columnMapping.teamMemberName]
-    const assignDate = row[columnMapping.assignDate]
-    const submitDate = row[columnMapping.columnAC]
-    const teamName = row[columnMapping.teamName]
-    const columnAB = row[columnMapping.columnAB]
-    const columnAC = row[columnMapping.columnAC]
-
-    if (!teamMemberName || teamMemberName.toString().trim() === '') return
-
-    const memberName = teamMemberName.toString().trim()
-    const memberTeamName = teamName ? teamName.toString().trim() : 'No Team'
+    const teamName = item.team_name || "No Team";
+    const plannedData = item.planned3;
+    const assignDate = item.actual2;
+    const actualData = item.actual3;
 
     if (!teamMap.has(memberName)) {
       teamMap.set(memberName, {
         id: teamMap.size + 1,
         name: memberName,
-        teamName: memberTeamName,
+        teamName,
         avatar: memberName.charAt(0).toUpperCase(),
-        assignDate: assignDate ? assignDate.toString().trim() : '',
+        assignDate: assignDate || "No assign date",
         totalTasks: 0,
         completedTasks: 0,
         pendingTasks: 0,
-        status: 'available',
-        latestAssignDate: assignDate ? assignDate.toString().trim() : '',
-        totalTimeSpent: 0,
-        completedTasksWithTime: []
-      })
+        status: "available",
+      });
     }
 
-    const member = teamMap.get(memberName)
-    member.totalTasks++
+    const member = teamMap.get(memberName);
+    member.totalTasks++;
 
-    // Update team name if available
-    if (teamName && teamName.toString().trim() !== '') {
-      member.teamName = teamName.toString().trim()
+    const plannedHasData = plannedData && plannedData.toString().trim() !== "";
+    const actualHasData = actualData && actualData.toString().trim() !== "";
+
+    if (plannedHasData && actualHasData) {
+      member.completedTasks++;
+      member.status = "available";
+    } else if (plannedHasData && !actualHasData) {
+      member.pendingTasks++;
+      member.status = "busy";
     }
+  });
 
-    // Check if task is completed (both AB and AC have data)
-    const abHasData = columnAB && columnAB.toString().trim() !== ''
-    const acHasData = columnAC && columnAC.toString().trim() !== ''
-
-    if (abHasData && acHasData) {
-      member.completedTasks++
-
-      if (assignDate) {
-        const timeSpent = calculateTimeDifference(assignDate, submitDate)
-        member.completedTasksWithTime.push({
-          assignDate: assignDate.toString().trim(),
-          submitDate: submitDate.toString().trim(),
-          timeSpent: timeSpent,
-          status: 'completed'
-        })
-
-        try {
-          const timeMatch = timeSpent.match(/(\d+)h (\d+)m/)
-          if (timeMatch) {
-            const hours = parseInt(timeMatch[1])
-            const minutes = parseInt(timeMatch[2])
-            member.totalTimeSpent += (hours * 60) + minutes
-          }
-        } catch (error) {
-          console.error('Error parsing time for total calculation:', error)
-        }
-      }
-    } else if (abHasData && !acHasData) {
-      member.pendingTasks++
-      member.status = 'busy'
-
-      if (assignDate) {
-        const timeSpent = calculateTimeDifference(assignDate, null)
-        member.completedTasksWithTime.push({
-          assignDate: assignDate.toString().trim(),
-          submitDate: 'In Progress',
-          timeSpent: timeSpent,
-          status: 'pending'
-        })
-
-        try {
-          const timeMatch = timeSpent.match(/(\d+)h (\d+)m/)
-          if (timeMatch) {
-            const hours = parseInt(timeMatch[1])
-            const minutes = parseInt(timeMatch[2])
-            member.totalTimeSpent += (hours * 60) + minutes
-          }
-        } catch (error) {
-          console.error('Error parsing time for total calculation:', error)
-        }
-      }
-    }
-
-    // Update assign date to latest one (most recent)
-    if (assignDate && assignDate.toString().trim() !== '') {
-      const currentAssignDate = assignDate.toString().trim()
-      if (!member.latestAssignDate || currentAssignDate > member.latestAssignDate) {
-        member.latestAssignDate = currentAssignDate
-        member.assignDate = currentAssignDate
-      }
-    }
-  })
-
-  // Convert map to array and calculate completion rates
-  const teamMembers = Array.from(teamMap.values()).map(member => {
-    const completionRate = member.totalTasks > 0
+  const teamMembers = Array.from(teamMap.values()).map((member) => ({
+    ...member,
+    tasksAssigned: member.pendingTasks,
+    tasksCompleted: member.completedTasks,
+    totalTasksGiven: member.totalTasks,
+    completionRate: member.totalTasks
       ? Math.round((member.completedTasks / member.totalTasks) * 100)
-      : 0
+      : 0,
+  }));
 
-    // Convert total time spent back to hours and minutes
-    const totalHours = Math.floor(member.totalTimeSpent / 60)
-    const totalMinutes = member.totalTimeSpent % 60
-    const formattedTotalTime = `${totalHours}h ${totalMinutes}m`
+  console.log("=== processTeamDataFromSupabase SUMMARY ===");
+  console.log("Team members found:", teamMembers.length);
+  console.log("Sample team members:", teamMembers.slice(0, 3));
+  console.log("=== processTeamDataFromSupabase DEBUG END ===");
 
-    return {
-      ...member,
-      tasksAssigned: member.pendingTasks,
-      tasksCompleted: member.completedTasks,
-      assignDate: member.assignDate || 'No assign date',
-      timeSpent: formattedTotalTime,
-      totalTasksGiven: member.totalTasks,
-      completionRate: completionRate
-    }
-  })
+  return teamMembers;
+};
 
-  return teamMembers
-}
+// Process project data from Supabase (unchanged from your version)
+const processProjectData = (supabaseData, userRole = 'admin') => {
+  console.log('=== processProjectData DEBUG START ===');
+  console.log('userRole:', userRole);
+  console.log('supabaseData available:', !!supabaseData);
+  console.log('supabaseData length:', supabaseData ? supabaseData.length : 0);
 
-// Function to process project data with stages (only for admin)
-const processProjectData = (sheetData, userRole = 'admin') => {
-  // Only process project data for admin
   if (userRole !== 'admin') {
-    return []
+    console.log('Not admin role, returning empty array');
+    return [];
   }
 
-  if (!sheetData || !Array.isArray(sheetData)) {
-    return []
+  if (!supabaseData || !Array.isArray(supabaseData)) {
+    console.log('No valid supabase data, returning empty array');
+    return [];
   }
 
-  // Column mappings
-  const projectColumnMapping = {
-    postedBy: 3, // Column D (Posted By)
-    typeOfWork: 4, // Column E (Type Of Work)
-    takenFrom: 5, // Column F (Taken From)
-    partyName: 6, // Column G (Party Name)
-    systemName: 7, // Column H (System Name)
-    descriptionOfWork: 8, // Column I (Description Of Work)
-    columnO: 14, // Column O
-    columnP: 15, // Column P
-    columnU: 20, // Column U
-    columnV: 21, // Column V
-    columnAB: 27, // Column AB
-    columnAC: 28, // Column AC
-  }
+  console.log('Supabase data sample:', supabaseData.slice(0, 2));
 
-  // Get data rows (starting from row 6 to skip headers)
-  const dataStartRow = 6
-  const dataRows = sheetData.slice(dataStartRow)
+  const determineStage = (record) => {
+    const {
+      planned1,
+      actual1,
+      planned2,
+      actual2,
+      planned3,
+      actual3
+    } = record;
 
-  // Function to determine current stage
-  const determineStage = (row) => {
-    const columnO = row[projectColumnMapping.columnO]
-    const columnP = row[projectColumnMapping.columnP]
-    const columnU = row[projectColumnMapping.columnU]
-    const columnV = row[projectColumnMapping.columnV]
-    const columnAB = row[projectColumnMapping.columnAB]
-    const columnAC = row[projectColumnMapping.columnAC]
+    const hasData = (field) => field && field.toString().trim() !== '';
+    const isEmpty = (field) => !field || field.toString().trim() === '';
 
-    // Helper function to check if column has data
-    const hasData = (col) => col && col.toString().trim() !== ''
-    const isEmpty = (col) => !col || col.toString().trim() === ''
-
-    // Stage 1: Column O has data, Column P is empty
-    if (hasData(columnO) && isEmpty(columnP)) {
-      return 'Stage 1'
+    if (hasData(planned1) && isEmpty(actual1)) {
+      return 'Stage 1';
     }
 
-    // Stage 2: Column O and P both have data, Column U has data, Column V is empty
-    if (hasData(columnO) && hasData(columnP) && hasData(columnU) && isEmpty(columnV)) {
-      return 'Stage 2'
+    if (hasData(planned1) && hasData(actual1) && hasData(planned2) && isEmpty(actual2)) {
+      return 'Stage 2';
     }
 
-    // Stage 3: Column U and V both have data, Column AB has data, Column AC is empty
-    if (hasData(columnU) && hasData(columnV) && hasData(columnAB) && isEmpty(columnAC)) {
-      return 'Stage 3'
+    if (hasData(planned2) && hasData(actual2) && hasData(planned3) && isEmpty(actual3)) {
+      return 'Stage 3';
     }
 
-    // Completed: Column AB and AC both have data
-    if (hasData(columnAB) && hasData(columnAC)) {
-      return 'Completed'
+    if (hasData(planned3) && hasData(actual3)) {
+      return 'Completed';
     }
 
-    return 'Not Started'
-  }
+    return 'Not Started';
+  };
 
-  const projectData = []
+  const projectData = [];
+  let processedCount = 0;
 
-  dataRows.forEach((row, index) => {
-    if (!row || row.length <= projectColumnMapping.descriptionOfWork) return
+  supabaseData.forEach((record, index) => {
+    if (!record || typeof record !== 'object') {
+      console.log(`Record ${index} is not valid:`, record);
+      return;
+    }
 
-    // Get all required data
-    const postedBy = row[projectColumnMapping.postedBy]
-    const typeOfWork = row[projectColumnMapping.typeOfWork]
-    const takenFrom = row[projectColumnMapping.takenFrom]
-    const partyName = row[projectColumnMapping.partyName]
-    const systemName = row[projectColumnMapping.systemName]
-    const descriptionOfWork = row[projectColumnMapping.descriptionOfWork]
+    const taskNo = record.task_no;
+    const descriptionOfWork = record.description_of_work;
+    
+    if ((!taskNo || taskNo.toString().trim() === '') && 
+        (!descriptionOfWork || descriptionOfWork.toString().trim() === '')) {
+      console.log(`Skipping record ${index + 1}: No Task No or Description`);
+      return;
+    }
 
-    // Skip rows without essential data
-    if (!descriptionOfWork || descriptionOfWork.toString().trim() === '') return
+    processedCount++;
 
-    // Determine current stage
-    const currentStage = determineStage(row)
+    const postedBy = record.posted_by;
+    const typeOfWork = record.type_of_work;
+    const takenFrom = record.taken_from;
+    const partyName = record.party_name;
+    const systemName = record.system_name;
+
+    const currentStage = determineStage(record);
 
     const projectItem = {
-      id: index + 1,
+      id: record.id || processedCount,
+      taskNo: taskNo ? taskNo.toString().trim() : `Task-${processedCount}`,
       postedBy: postedBy ? postedBy.toString().trim() : 'N/A',
       typeOfWork: typeOfWork ? typeOfWork.toString().trim() : 'N/A',
       takenFrom: takenFrom ? takenFrom.toString().trim() : 'N/A',
       partyName: partyName ? partyName.toString().trim() : 'N/A',
       systemName: systemName ? systemName.toString().trim() : 'N/A',
-      descriptionOfWork: descriptionOfWork.toString().trim(),
-      stage1: currentStage === 'Stage 1' ? 'Active' : currentStage === 'Stage 2' || currentStage === 'Stage 3' || currentStage === 'Completed' ? 'Completed' : 'Pending',
-      stage2: currentStage === 'Stage 2' ? 'Active' : currentStage === 'Stage 3' || currentStage === 'Completed' ? 'Completed' : 'Pending',
-      stage3: currentStage === 'Stage 3' ? 'Active' : currentStage === 'Completed' ? 'Completed' : 'Pending',
+      descriptionOfWork: descriptionOfWork ? descriptionOfWork.toString().trim() : 'N/A',
+      stage1: currentStage === 'Stage 1' ? 'Active' : 
+              (currentStage === 'Stage 2' || currentStage === 'Stage 3' || currentStage === 'Completed') ? 'Completed' : 'Pending',
+      stage2: currentStage === 'Stage 2' ? 'Active' : 
+              (currentStage === 'Stage 3' || currentStage === 'Completed') ? 'Completed' : 'Pending',
+      stage3: currentStage === 'Stage 3' ? 'Active' : 
+              currentStage === 'Completed' ? 'Completed' : 'Pending',
       currentStage: currentStage,
-      priority: 'Normal', // Default priority for filtering
-      columnO: row[projectColumnMapping.columnO] || '',
-      columnP: row[projectColumnMapping.columnP] || '',
-      columnU: row[projectColumnMapping.columnU] || '',
-      columnV: row[projectColumnMapping.columnV] || '',
-      columnAB: row[projectColumnMapping.columnAB] || '',
-      columnAC: row[projectColumnMapping.columnAC] || ''
-    }
+      priority: 'Normal',
+      planned1: record.planned1 || '',
+      actual1: record.actual1 || '',
+      planned2: record.planned2 || '',
+      actual2: record.actual2 || '',
+      planned3: record.planned3 || '',
+      actual3: record.actual3 || '',
+      timestamp: record.timestamp || '',
+      givenDate: record.given_date || '',
+      status: record.status || '',
+      teamName: record.team_name || '',
+      assignedBy: record.assigned_by || ''
+    };
 
-    projectData.push(projectItem)
-  })
+    projectData.push(projectItem);
+  });
 
-  return projectData
-}
+  console.log('=== processProjectData SUMMARY ===');
+  console.log('Total records processed:', processedCount);
+  console.log('Final project data length:', projectData.length);
+  console.log('=== processProjectData DEBUG END ===');
 
-// Company Filters Component (to be placed at top of dashboard) with count functionality
-// Company Filters Component (to be placed at top of dashboard) with count functionality
-function CompanyFilters({ companyData, sheetData, masterSheetData, filters, onFilterChange, onClearFilters }) {
-  const [tableData, setTableData] = useState([])
+  return projectData;
+};
+
+// Company Filters Component for Supabase
+function CompanyFilters({ companyData, supabaseData, filters, onFilterChange, onClearFilters }) {
+  const [filteredData, setFilteredData] = useState([]);
 
   useEffect(() => {
-    if (sheetData && companyData && masterSheetData) {
-      const data = getCompanyTableData(sheetData, companyData, masterSheetData)
-      setTableData(data)
+    if (supabaseData && companyData) {
+      const data = supabaseData.filter(item => 
+        item.party_name && item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+      );
+      setFilteredData(data);
     }
-  }, [sheetData, companyData, masterSheetData])
+  }, [supabaseData, companyData]);
 
   // Get unique values with counts for dropdowns
   const getTypeOfWorkWithCounts = () => {
-    const typeOfWorkCounts = {}
-    tableData.forEach(item => {
-      if (item.typeOfWork !== 'N/A') {
-        typeOfWorkCounts[item.typeOfWork] = (typeOfWorkCounts[item.typeOfWork] || 0) + 1
+    const typeOfWorkCounts = {};
+    filteredData.forEach(item => {
+      if (item.type_of_work) {
+        typeOfWorkCounts[item.type_of_work] = (typeOfWorkCounts[item.type_of_work] || 0) + 1;
       }
-    })
+    });
     return Object.entries(typeOfWorkCounts).map(([type, count]) => ({
       value: type,
       label: `${type}`,
       count: count
-    }))
-  }
+    }));
+  };
 
   const getStatusWithCounts = () => {
-    const statusCounts = {}
-    tableData.forEach(item => {
-      if (item.status === 'In Progress' || item.status === 'Completed') {
-        statusCounts[item.status] = (statusCounts[item.status] || 0) + 1
-      }
-    })
+    const statusCounts = {
+      'In Progress': 0,
+      'Completed': 0
+    };
+    
+    filteredData.forEach(item => {
+      const status = item.actual3 ? 'Completed' : 'In Progress';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    
     return Object.entries(statusCounts).map(([status, count]) => ({
       value: status,
       label: `${status}`,
       count: count
-    }))
-  }
+    }));
+  };
 
   const getPriorityWithCounts = () => {
-    const priorityCounts = {}
-    tableData.forEach(item => {
-      if (item.priority !== 'N/A') {
-        priorityCounts[item.priority] = (priorityCounts[item.priority] || 0) + 1
+    const priorityCounts = {};
+    filteredData.forEach(item => {
+      if (item.priority_in_customer) {
+        priorityCounts[item.priority_in_customer] = (priorityCounts[item.priority_in_customer] || 0) + 1;
       }
-    })
+    });
     return Object.entries(priorityCounts).map(([priority, count]) => ({
       value: priority,
       label: `${priority}`,
       count: count
-    }))
-  }
+    }));
+  };
 
-  const typeOfWorkOptions = getTypeOfWorkWithCounts()
-  const statusOptions = getStatusWithCounts()
-  const priorityOptions = getPriorityWithCounts()
+  const typeOfWorkOptions = getTypeOfWorkWithCounts();
+  const statusOptions = getStatusWithCounts();
+  const priorityOptions = getPriorityWithCounts();
 
   return (
-    <div className="bg-white  shadow-sm border border-gray-200 p-4 mb-6">
+    <div className="bg-white shadow-sm border border-gray-200 p-4 mb-6">
       <div className="grid grid-cols-3 gap-4 items-center">
         {/* Type of Work Filter */}
         <div className="relative">
@@ -1949,112 +1749,50 @@ function CompanyFilters({ companyData, sheetData, masterSheetData, filters, onFi
         )}
       </div>
     </div>
-  )
+  );
 }
 
-// Admin Filters Component for admin tables
-function AdminFilters({ projectData, filters, onFilterChange, onClearFilters }) {
-  // Get unique values for dropdowns from project data
-  const uniquePriorities = [...new Set(projectData.map(item => item.priority || 'Normal'))].filter(item => item !== 'N/A')
-  const uniqueSystemNames = [...new Set(projectData.map(item => item.systemName))].filter(item => item !== 'N/A')
+// Company Table Component for Supabase
+function CompanyTableSection({ companyData, supabaseData, filters }) {
+  const [filteredData, setFilteredData] = useState([]);
 
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-6">
-      <div className="flex flex-wrap gap-4 items-center">
-        <h3 className="text-sm font-medium text-gray-700">Filters:</h3>
+  useEffect(() => {
+    if (supabaseData && companyData) {
+      // First filter by company
+      let data = supabaseData.filter(item => 
+        item.party_name && item.party_name.toLowerCase() === companyData.companyName.toLowerCase()
+      );
 
-        {/* System Name Filter */}
-        <div className="relative">
-          <select
-            value={filters.systemName}
-            onChange={(e) => onFilterChange('systemName', e.target.value)}
-            className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All System Names</option>
-            {uniqueSystemNames.map((systemName, index) => (
-              <option key={index} value={systemName}>{systemName}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        </div>
-
-        {/* Clear Filters Button */}
-        {(filters.priority || filters.systemName) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearFilters}
-            className="text-gray-600 hover:text-gray-800"
-          >
-            Clear Filters
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Company Table Component (simplified, filters moved to top)
-function CompanyTableSection({ companyData, sheetData, masterSheetData, filters }) {
-  const [tableData, setTableData] = useState([])
-  const [filteredData, setFilteredData] = useState([])
-
-  // Date formatting function
-  const formatDate = (dateString) => {
-    if (!dateString || dateString === 'N/A' || dateString === '') {
-      return 'N/A'
-    }
-
-    try {
-      const date = new Date(dateString)
-
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return dateString // Return original if invalid
+      // Then apply additional filters
+      if (filters.typeOfWork) {
+        data = data.filter(item => item.type_of_work === filters.typeOfWork);
       }
 
-      const day = String(date.getDate()).padStart(2, '0')
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const year = String(date.getFullYear()).slice(-2) // Get last 2 digits of year
+      if (filters.status) {
+        data = data.filter(item => {
+          const itemStatus = item.actual3 ? 'Completed' : 'In Progress';
+          return itemStatus === filters.status;
+        });
+      }
 
-      return `${day}/${month}/${year}`
-    } catch (error) {
-      return dateString // Return original if error occurs
+      if (filters.priority) {
+        data = data.filter(item => item.priority_in_customer === filters.priority);
+      }
+
+      setFilteredData(data);
     }
-  }
+  }, [supabaseData, companyData, filters]);
 
-  useEffect(() => {
-    if (sheetData && companyData && masterSheetData) {
-      const data = getCompanyTableData(sheetData, companyData, masterSheetData)
-      setTableData(data)
-      setFilteredData(data)
+  // Format date function
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB');
+    } catch {
+      return dateString;
     }
-  }, [sheetData, companyData, masterSheetData])
-
-  // Apply filters
-  useEffect(() => {
-    let filtered = tableData
-
-    if (filters.typeOfWork) {
-      filtered = filtered.filter(item =>
-        item.typeOfWork.toLowerCase().includes(filters.typeOfWork.toLowerCase())
-      )
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter(item =>
-        item.status === filters.status
-      )
-    }
-
-    if (filters.priority) {
-      filtered = filtered.filter(item =>
-        item.priority.toLowerCase().includes(filters.priority.toLowerCase())
-      )
-    }
-
-    setFilteredData(filtered)
-  }, [filters, tableData])
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
@@ -2065,6 +1803,9 @@ function CompanyTableSection({ companyData, sheetData, masterSheetData, filters 
             <h2 className="text-lg md:text-xl font-semibold text-gray-900">Tasks Overview</h2>
             <p className="text-sm md:text-base text-gray-600">Track your company's tasks and progress</p>
           </div>
+          <div className="text-sm text-gray-500">
+            {filteredData.length} tasks found
+          </div>
         </div>
       </div>
 
@@ -2073,135 +1814,87 @@ function CompanyTableSection({ companyData, sheetData, masterSheetData, filters 
         <table className="w-full">
           <thead className="bg-blue-500 sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
-                Party Name
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Type of Work
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 System Name
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Description of Work
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
-                Notes
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
-                Taken From
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Expected Date to Close
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Priority
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
-                Link of System
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-500">
-                Attachment File
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                Assigned To
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.length > 0 ? (
-              filteredData.map((item) => (
-                <motion.tr
-                  key={item.id}
-                  className="hover:bg-gray-50 transition-colors"
-                  whileHover={{ backgroundColor: "#f9fafb" }}
-                >
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'Completed'
-                          ? 'bg-green-100 text-green-800'
-                          : item.status === 'In Progress'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
+              filteredData.map((item) => {
+                const status = item.actual3 ? 'Completed' : 'In Progress';
+                
+                return (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          status === 'Completed'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
                         }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.partyName}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.typeOfWork}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.systemName}</div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate" title={item.descriptionOfWork}>
-                      {item.descriptionOfWork}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate" title={item.notes}>
-                      {item.notes}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.takenFrom}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatDate(item.expectedDateToClose)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.priority === 'High'
-                          ? 'bg-red-100 text-red-800'
-                          : item.priority === 'Medium'
+                      >
+                        {status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.type_of_work || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.system_name || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {item.description_of_work || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {formatDate(item.expected_date_to_close)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          item.priority_in_customer === 'High'
+                            ? 'bg-red-100 text-red-800'
+                            : item.priority_in_customer === 'Medium'
                             ? 'bg-yellow-100 text-yellow-800'
-                            : item.priority === 'Low'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
+                            : 'bg-green-100 text-green-800'
                         }`}
-                    >
-                      {item.priority}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    {item.linkOfSystem !== 'N/A' && item.linkOfSystem ? (
-                      <a
-                        href={item.linkOfSystem.startsWith('http') ? item.linkOfSystem : `https://${item.linkOfSystem}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 text-sm underline"
                       >
-                        Open Link
-                      </a>
-                    ) : (
-                      <div className="text-sm text-gray-400">No Link</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    {item.attachmentFile !== 'N/A' && item.attachmentFile ? (
-                      <a
-                        href={item.attachmentFile.startsWith('http') ? item.attachmentFile : `https://${item.attachmentFile}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-600 hover:text-green-800 text-sm underline"
-                      >
-                        View File
-                      </a>
-                    ) : (
-                      <div className="text-sm text-gray-400">No File</div>
-                    )}
-                  </td>
-                </motion.tr>
-              ))
+                        {item.priority_in_customer || 'Normal'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.employee_name_1 || 'N/A'}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan="11" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                   No tasks found matching the selected filters
                 </td>
               </tr>
@@ -2213,106 +1906,65 @@ function CompanyTableSection({ companyData, sheetData, masterSheetData, filters 
       {/* Mobile Card View */}
       <div className="lg:hidden max-h-96 overflow-y-auto p-4 space-y-4">
         {filteredData.length > 0 ? (
-          filteredData.map((item) => (
-            <motion.div
-              key={item.id}
-              className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm"
-              whileHover={{ scale: 1.02 }}
-            >
-              {/* Mobile Card Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
+          filteredData.map((item) => {
+            const status = item.actual3 ? 'Completed' : 'In Progress';
+            
+            return (
+              <div key={item.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
                   <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'Completed'
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      status === 'Completed'
                         ? 'bg-green-100 text-green-800'
-                        : item.status === 'In Progress'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
+                        : 'bg-blue-100 text-blue-800'
+                    }`}
                   >
-                    {item.status}
+                    {status}
                   </span>
                   <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.priority === 'High'
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      item.priority_in_customer === 'High'
                         ? 'bg-red-100 text-red-800'
-                        : item.priority === 'Medium'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : item.priority === 'Low'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                      }`}
+                        : item.priority_in_customer === 'Medium'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}
                   >
-                    {item.priority}
+                    {item.priority_in_customer || 'Normal'}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {formatDate(item.expectedDateToClose)}
-                </div>
-              </div>
 
-              {/* Mobile Card Content */}
-              <div className="space-y-2">
-                <div>
-                  <span className="text-xs font-medium text-gray-600">Party:</span>
-                  <div className="text-sm text-gray-900 font-medium">{item.partyName}</div>
-                </div>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">Type:</span>
+                    <div className="text-sm text-gray-900 font-medium">{item.type_of_work || 'N/A'}</div>
+                  </div>
 
-                <div>
-                  <span className="text-xs font-medium text-gray-600">Work Type:</span>
-                  <div className="text-sm text-gray-900">{item.typeOfWork}</div>
-                </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">System:</span>
+                    <div className="text-sm text-gray-900">{item.system_name || 'N/A'}</div>
+                  </div>
 
-                <div>
-                  <span className="text-xs font-medium text-gray-600">System:</span>
-                  <div className="text-sm text-gray-900">{item.systemName}</div>
-                </div>
-
-                {item.descriptionOfWork && (
                   <div>
                     <span className="text-xs font-medium text-gray-600">Description:</span>
-                    <div className="text-sm text-gray-900">{item.descriptionOfWork}</div>
+                    <div className="text-sm text-gray-900">{item.description_of_work || 'N/A'}</div>
                   </div>
-                )}
 
-                {item.notes && (
                   <div>
-                    <span className="text-xs font-medium text-gray-600">Notes:</span>
-                    <div className="text-sm text-gray-900">{item.notes}</div>
+                    <span className="text-xs font-medium text-gray-600">Due Date:</span>
+                    <div className="text-sm text-gray-900">
+                      {formatDate(item.expected_date_to_close)}
+                    </div>
                   </div>
-                )}
 
-                <div>
-                  <span className="text-xs font-medium text-gray-600">Taken From:</span>
-                  <div className="text-sm text-gray-900">{item.takenFrom}</div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-600">Assigned To:</span>
+                    <div className="text-sm text-gray-900">{item.employee_name_1 || 'N/A'}</div>
+                  </div>
                 </div>
               </div>
-
-              {/* Mobile Card Links */}
-              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-200">
-                {item.linkOfSystem !== 'N/A' && item.linkOfSystem ? (
-                  <a
-                    href={item.linkOfSystem.startsWith('http') ? item.linkOfSystem : `https://${item.linkOfSystem}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-full hover:bg-blue-200"
-                  >
-                    System Link
-                  </a>
-                ) : null}
-
-                {item.attachmentFile !== 'N/A' && item.attachmentFile ? (
-                  <a
-                    href={item.attachmentFile.startsWith('http') ? item.attachmentFile : `https://${item.attachmentFile}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600 bg-green-100 rounded-full hover:bg-green-200"
-                  >
-                    View File
-                  </a>
-                ) : null}
-              </div>
-            </motion.div>
-          ))
+            );
+          })
         ) : (
           <div className="text-center py-8">
             <div className="text-gray-500">No tasks found matching the selected filters</div>
@@ -2320,5 +1972,5 @@ function CompanyTableSection({ companyData, sheetData, masterSheetData, filters 
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -116,37 +116,53 @@ function App() {
     setCurrentPage("contact")
   }
 
-  const handleLogin = (role, username, pagination, filterData, companyInfo = null) => {
-    console.log('🎉 Login successful for:', username, 'Role:', role);
-    console.log('📊 Filter data received:', filterData);
-    console.log('🏢 Company data received:', companyInfo);
-    
-    const userData = {
-      type: role,
-      username,
-      pagination: role === "admin" ? "all" : pagination
+ const handleLogin = (role, username, pagination, filterData, companyInfo = null) => {
+  console.log('🎉 Login successful for:', username, 'Role:', role);
+  console.log('📊 Filter data received:', filterData);
+  console.log('🏢 Company data received:', companyInfo);
+  
+  // Handle pagination whether it's a string or object
+  let paginationValue = pagination;
+  
+  if (typeof pagination === 'object') {
+    try {
+      paginationValue = JSON.parse(pagination);
+    } catch (e) {
+      console.warn("Could not parse pagination string, using as is:", pagination);
     }
-
-    setUser(userData)
-    setUserFilterData(filterData)
-    setCompanyData(companyInfo)
-    setCurrentPage("dashboard")
-    setIsLoginOpen(false)
-
-    // Store comprehensive session data
-    const sessionData = {
-      role,
-      username,
-      pagination: role === "admin" ? "all" : pagination,
-      filterData,
-      companyData: companyInfo
-    }
-    
-    // Store both session and persistent data
-    sessionStorage.setItem('userSession', JSON.stringify(sessionData))
-    sessionStorage.setItem('currentPage', 'dashboard')
-    localStorage.setItem('userData', JSON.stringify(userData))
   }
+  
+  // For admin role, set pagination to "all"
+  const finalPagination = role === "admin" ? "all" : paginationValue;
+
+  const userData = {
+    type: role,
+    username,
+    pagination: finalPagination
+  }
+
+  setUser(userData)
+  setUserFilterData(filterData)
+  setCompanyData(companyInfo)
+  setCurrentPage("dashboard")
+  setIsLoginOpen(false)
+
+  // Store comprehensive session data
+  const sessionData = {
+    role,
+    username,
+    pagination: finalPagination,
+    filterData,
+    companyData: companyInfo
+  }
+  
+  // Store both session and persistent data
+  sessionStorage.setItem('userSession', JSON.stringify(sessionData))
+  sessionStorage.setItem('currentPage', 'dashboard')
+  localStorage.setItem('userData', JSON.stringify(userData))
+  
+  console.log('✅ Session data stored:', sessionData);
+}
 
   const handleLogout = () => {
     console.log('👋 User logging out');

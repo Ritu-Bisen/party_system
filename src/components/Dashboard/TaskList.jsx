@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Clock, CheckCircle, AlertTriangle, Eye, Edit, Trash2, Search, X, User, RefreshCw, ArrowRight, FileText } from "lucide-react"
+import supabase from "../../supabaseClient"
 
 const Button = ({ children, onClick, disabled, className, ...props }) => (
   <button
@@ -17,39 +18,26 @@ const Button = ({ children, onClick, disabled, className, ...props }) => (
 // Function to fetch Master Sheet Link data for company matching
 const fetchMasterSheetLinkData = async () => {
   try {
-    const payload = new URLSearchParams()
-    payload.append("action", "getMasterSheetData")
-    payload.append("sheet", "Master Sheet Link")
+    // 👇 Replace "master_sheet_link" with your actual Supabase table name
+    const { data, error } = await supabase
+      .from("master") // table in Supabase
+      .select("*")
 
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      }
-    )
+    if (error) throw error
 
-    const data = await response.json()
-    return data.success ? data.data : null
-  } catch (error) {
-    // Fallback: try GET method with sheet parameter
-    try {
-      const timestamp = new Date().getTime()
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master Sheet Link&timestamp=${timestamp}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return data.success ? data.data : null
-    } catch (fallbackError) {
-      console.error("Error fetching Master Sheet Link data:", fallbackError)
+    if (data && data.length > 0) {
+      console.log("Fetched Master Sheet Link data:", data.length, "rows")
+      return data
+    } else {
+      console.warn("No Master Sheet Link data found")
       return null
     }
+  } catch (error) {
+    console.error("Error fetching Master Sheet Link data from Supabase:", error)
+    return null
   }
 }
+
 
 // Function to get party names that match the logged-in company
 const getCompanyPartyNames = (companyName, masterSheetData) => {
@@ -129,21 +117,22 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
   const SHEET_NAME = "FMS"
 
   // Table Columns Configuration - Hide first 7 columns for company users
-  const TABLE_COLUMNS = [
-    { key: 'taskNo', label: 'Task No', index: 1 },
-    { key: 'givenDate', label: 'Given Date', index: 2 },
-    { key: 'postedBy', label: 'Posted By', index: 3 },
-    { key: 'typeOfWork', label: 'Type Of Work', index: 4 },
-    { key: 'takenFrom', label: 'Taken From', index: 5 },
-    { key: 'partyName', label: 'Party Name', index: 6 },
-    { key: 'systemName', label: 'System Name', index: 7 },
-    { key: 'descriptionOfWork', label: 'Description Of Work', index: 8 },
-    { key: 'linkOfSystem', label: 'Link Of System', index: 9 },
-    { key: 'attachmentFile', label: 'Attachment File', index: 10 },
-    { key: 'priorityInCustomer', label: 'Priority In Customer', index: 11 },
-    { key: 'notes', label: 'Notes', index: 12 },
-    { key: 'expectedDateToClose', label: 'Expected Date To Close', index: 13 },
-  ]
+ // Table Columns Configuration - UPDATED TO MATCH YOUR SCREENSHOT
+const TABLE_COLUMNS = [
+  { key: 'taskNo', label: 'Task No' },
+  { key: 'givenDate', label: 'Given Date' },
+  { key: 'postedBy', label: 'Posted By' },
+  { key: 'typeOfWork', label: 'Type Of Work' },
+  { key: 'takenFrom', label: 'Taken From' },
+  { key: 'partyName', label: 'Party Name' },
+  { key: 'systemName', label: 'System Name' },
+  { key: 'descriptionOfWork', label: 'Description Of Work' },
+  { key: 'linkOfSystem', label: 'Link Of System' },
+  { key: 'attachmentFile', label: 'Attachment File' },
+  { key: 'priorityInCustomer', label: 'Priority In Customer' },
+  { key: 'notes', label: 'Notes' },
+  { key: 'expectedDateToClose', label: 'Expected Date To Close' }
+];
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
 
@@ -170,19 +159,34 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
   const isAdminUser = userFilterData?.isAdmin
 
   // Filter columns based on user type
-  const getVisibleColumns = () => {
-    if (isCompanyUser) {
-      // For company users: Type Of Work, Party Name, System Name, Description of Work, Link of System, then from index 10 onwards
-      const typeOfWorkColumn = { key: 'typeOfWork', label: 'Type Of Work', index: 4 }
-      const partyNameColumn = { key: 'partyName', label: 'Party Name', index: 6 }
-      const systemNameColumn = { key: 'systemName', label: 'System Name', index: 7 }
-      const descriptionColumn = { key: 'descriptionOfWork', label: 'Description Of Work', index: 8 }
-      const linkColumn = { key: 'linkOfSystem', label: 'Link Of System', index: 9 }
-      const remainingColumns = TABLE_COLUMNS.filter(col => col.index >= 10) // Start from Attachment File onwards
-      return [typeOfWorkColumn, partyNameColumn, systemNameColumn, descriptionColumn, linkColumn, ...remainingColumns]
-    }
-    return TABLE_COLUMNS // Show all columns for admin/regular users
+// Replace the getVisibleColumns function with this corrected version
+const getVisibleColumns = () => {
+  if (isCompanyUser) {
+    // For company users: Type Of Work, Party Name, System Name, Description of Work, Link of System, then from index 10 onwards
+    const typeOfWorkColumn = { key: 'typeOfWork', label: 'Type Of Work' }
+    const partyNameColumn = { key: 'partyName', label: 'Party Name' }
+    const systemNameColumn = { key: 'systemName', label: 'System Name' }
+    const descriptionColumn = { key: 'descriptionOfWork', label: 'Description Of Work' }
+    const linkColumn = { key: 'linkOfSystem', label: 'Link Of System' }
+    
+    // Remaining columns (priority, notes, expected date)
+    const remainingColumns = [
+      { key: 'priorityInCustomer', label: 'Priority In Customer' },
+      { key: 'notes', label: 'Notes' },
+      { key: 'expectedDateToClose', label: 'Expected Date To Close' }
+    ]
+
+    return [typeOfWorkColumn, partyNameColumn, systemNameColumn, descriptionColumn, linkColumn, ...remainingColumns]
   }
+
+  // For admin/regular users, show all columns except actualDate for pending tasks
+  let columns = TABLE_COLUMNS
+  if (type === "pending") {
+    columns = TABLE_COLUMNS.filter(col => col.key !== 'actualDate')
+  }
+
+  return columns
+}
 
   const visibleColumns = getVisibleColumns()
 
@@ -232,32 +236,38 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
 
   // Get current user from session storage
   const getCurrentUser = () => {
-    try {
-      const session = sessionStorage.getItem('userSession')
-      if (session) {
-        const userData = JSON.parse(session)
-        return userData.username || currentUser
-      }
-    } catch (e) {
-
-    }
-    return currentUser || "Unknown"
+  if (userFilterData && userFilterData.username) {
+    return userFilterData.username;
   }
-
-  // Get user role from session storage
-  const getUserRole = () => {
-    try {
-      const session = sessionStorage.getItem('userSession')
-      if (session) {
-        const userData = JSON.parse(session)
-        return userData.role || "user"
-      }
-    } catch (e) {
-
+  
+  try {
+    const session = sessionStorage.getItem('userSession');
+    if (session) {
+      const userData = JSON.parse(session);
+      return userData.username || currentUser;
     }
-    return "user"
+  } catch (e) {
+    console.error('Error parsing session:', e);
   }
+  return currentUser || "Unknown";
+};
 
+const getUserRole = () => {
+  if (userFilterData) {
+    return userFilterData.isAdmin ? 'admin' : 'user';
+  }
+  
+  try {
+    const session = sessionStorage.getItem('userSession');
+    if (session) {
+      const userData = JSON.parse(session);
+      return userData.role || "user";
+    }
+  } catch (e) {
+    console.error('Error parsing session:', e);
+  }
+  return "user";
+};
   // Set current user and role on component mount
   useEffect(() => {
     const user = getCurrentUser()
@@ -267,94 +277,81 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
   }, [])
 
   // Check if user can access task - SIMPLIFIED VERSION for both members
-  const canUserAccessTask = (task, filterData) => {
-    // For company users, use company filtering
-    if (isCompanyUser) {
-      return true
-    }
-
-    const currentUsername = getCurrentUser().toLowerCase()
-
-    // Admin can see all data
-    if (filterData && (filterData.isAdmin || filterData.showAllData)) {
-
-      return true
-    }
-
-    // If no filter data provided, allow access (for testing)
-    if (!filterData) {
-
-      const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : ''
-      const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : ''
-      const canAccess = assignedMember1 === currentUsername || assignedMember2 === currentUsername
-
-      return canAccess
-    }
-
-    // If user doesn't exist in the system, use direct matching as fallback
-    if (!filterData.userExists) {
-      console.log('User does not exist in filter system, using direct matching as fallback')
-      const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : ''
-      const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : ''
-      const canAccess = assignedMember1 === currentUsername || assignedMember2 === currentUsername
-      return canAccess
-    }
-
-    const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : ''
-    const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : ''
-
-    // Show task if user is Member1 OR Member2 (like your original code)
-    const canAccess = assignedMember1 === currentUsername || assignedMember2 === currentUsername
-
-    return canAccess
+const canUserAccessTask = (task) => {
+  // For company users and admins, show all tasks
+  if (isCompanyUser || (userFilterData && userFilterData.isAdmin)) {
+    return true;
   }
 
-  // Check who can submit the task
-  const canUserSubmitTask = (task) => {
-    // Company users cannot submit tasks (read-only access)
-    if (isCompanyUser) {
-      console.log(`Company user cannot submit`)
-      return false
-    }
-
-    const currentUsername = getCurrentUser().toLowerCase()
-    const statusAE = task.status1 ? task.status1.toString().toLowerCase() : ''
-    const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : ''
-    const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : ''
-
-    console.log(`Submit check - User: ${currentUsername}, Status: '${statusAE}', Member1: ${assignedMember1}, Member2: ${assignedMember2}`)
-
-    // CRITICAL: Check if task is already completed first
-    if (statusAE.includes('completed by')) {
-      console.log(`Task already completed - Status: ${statusAE}`)
-      return false
-    }
-
-    // Check if both submission dates exist (backup completion check)
-    if (task.submissionDate1 && task.submissionDate2) {
-      console.log(`Task already completed (both dates present)`)
-      return false
-    }
-
-    // If task is forwarded to member2 (forward2), only member2 can submit
-    if (statusAE.includes('forward2')) {
-      const canSubmit = assignedMember2 === currentUsername
-      console.log(`Forward2 - Can submit: ${canSubmit} (only Member2 can submit when forwarded)`)
-      return canSubmit
-    }
-    // If task is forwarded back to member1 (forward1), only member1 can submit  
-    else if (statusAE.includes('forward1')) {
-      const canSubmit = assignedMember1 === currentUsername
-      console.log(`Forward1 - Can submit: ${canSubmit} (only Member1 can submit when forwarded back)`)
-      return canSubmit
-    }
-    // For normal tasks (no forward status), only member1 can submit
-    else {
-      const canSubmit = assignedMember1 === currentUsername
-      console.log(`Normal - Can submit: ${canSubmit} (only Member1 can submit normal tasks)`)
-      return canSubmit
-    }
+  // For users with showAllData permission
+  if (userFilterData && userFilterData.showAllData) {
+    return true;
   }
+
+  // For regular users, check if they're assigned to the task
+  if (userFilterData && userFilterData.username) {
+    const currentUsername = userFilterData.username.toLowerCase();
+    const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : '';
+    const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : '';
+
+    // Show task if user is either Member1 or Member2
+    return assignedMember1 === currentUsername || assignedMember2 === currentUsername;
+  }
+
+  return false;
+};
+
+const canUserSubmitTask = (task) => {
+  // Company users cannot submit tasks (read-only access)
+  if (isCompanyUser) {
+    console.log(`Company user cannot submit`);
+    return false;
+  }
+
+  // Check if userFilterData exists
+  if (!userFilterData || !userFilterData.username) {
+    console.log(`No user data available for submission check`);
+    return false;
+  }
+
+  const currentUsername = userFilterData.username.toLowerCase();
+  const statusAE = task.status1 ? task.status1.toString().toLowerCase() : '';
+  const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : '';
+  const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : '';
+
+  console.log(`Submit check - User: ${currentUsername}, Status: '${statusAE}', Member1: ${assignedMember1}, Member2: ${assignedMember2}`);
+
+  // CRITICAL: Check if task is already completed first
+  if (statusAE.includes('completed by')) {
+    console.log(`Task already completed - Status: ${statusAE}`);
+    return false;
+  }
+
+  // Check if both submission dates exist (backup completion check)
+  if (task.submissionDate1 && task.submissionDate2) {
+    console.log(`Task already completed (both dates present)`);
+    return false;
+  }
+
+  // If task is forwarded to member2 (forward2), only member2 can submit
+  if (statusAE.includes('forward2')) {
+    const canSubmit = assignedMember2 === currentUsername;
+    console.log(`Forward2 - Can submit: ${canSubmit} (only Member2 can submit when forwarded)`);
+    return canSubmit;
+  }
+  // If task is forwarded back to member1 (forward1), only member1 can submit  
+  else if (statusAE.includes('forward1')) {
+    const canSubmit = assignedMember1 === currentUsername;
+    console.log(`Forward1 - Can submit: ${canSubmit} (only Member1 can submit when forwarded back)`);
+    return canSubmit;
+  }
+  // For normal tasks (no forward status), only member1 can submit
+  else {
+    const canSubmit = assignedMember1 === currentUsername;
+    console.log(`Normal - Can submit: ${canSubmit} (only Member1 can submit normal tasks)`);
+    return canSubmit;
+  }
+};
 
   // FIXED: Load Master Sheet data first for company users
   const loadMasterSheetData = async () => {
@@ -379,227 +376,259 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
     return null
   }
 
-  // Data transformation function with filtering - FIXED VERSION
-  const transformSheetData = (rawData, masterSheetDataForFiltering = null) => {
-    if (!rawData || !Array.isArray(rawData)) return []
+// Add these state variables at the top of your component with the other useState declarations
+const [teamMembers1, setTeamMembers1] = useState([]);
+const [teamMembers2, setTeamMembers2] = useState([]);
 
-    if (rawData.length <= 6) {
-      console.log("Not enough data rows")
-      return []
-    }
-
-    const dataRows = rawData.slice(6)
-    console.log(`Processing ${dataRows.length} data rows`)
-
-    // Extract unique team members from column Y (index 24)
-    const members = [...new Set(dataRows.map(row => row[24]).filter(Boolean))]
-    setTeamMembers(members)
-
-    const allTransformedTasks = dataRows.map((row, index) => {
-      if (!Array.isArray(row)) return null
-
-      const task = {
-        id: index + 1,
-        rowNumber: index + 7,
-        taskNo: row[1] || '',
-        partyName: row[6] || '',
-        systemName: row[7] || '',
-        teamMembers: row[17] || '', // Column R (index 17) - who assigned the project
-        typeOfWork: row[4] || '',
-        descriptionOfWork: row[8] || '',
-        expectedDateToClose: row[13] || '',
-        planned2: row[20] || '',
-        actual2: row[21] || '',
-        assignedMember1: row[23] || '', // Column X
-        assignedMember2: row[24] || '', // Column Y
-        timeRequired: row[25] || '',
-        remarks: row[26] || '',
-        submissionDate1: row[27] || '',  // Column AB
-        submissionDate2: row[28] || '',  // Column AC
-        status1: row[30] || '',          // Column AE - Status Message
-        priority: row[11] || 'Medium',
-        isReassigned: false,
-        originalAssignee: row[23] || ''
-      }
-
-      // Determine status based on completion
-      if (task.status1?.includes('completed by') || (task.submissionDate1 && task.submissionDate2)) {
-        task.status = 'completed'
-      } else if (task.submissionDate1 || task.status1?.includes('forward') || task.assignedMember1 || task.assignedMember2) {
-        task.status = 'pending'
-      } else {
-        task.status = 'not-started'
-      }
-
-      // Add all table columns data
-      TABLE_COLUMNS.forEach(column => {
-        if (column.index && row[column.index]) {
-          task[column.key] = row[column.index]
-        } else {
-          task[column.key] = ''
-        }
-      })
-
-      return task
-    }).filter(task => task !== null)
-
-    console.log(`Total tasks before filtering: ${allTransformedTasks.length}`)
-
-    let filteredTasks = allTransformedTasks
-
-    // Apply company filtering if user is company - FIXED TO USE PARAMETER
-    if (isCompanyUser && masterSheetDataForFiltering) {
-      console.log('Applying company filtering for:', companyData.companyName)
-
-      const matchingPartyNames = getCompanyPartyNames(companyData.companyName, masterSheetDataForFiltering)
-      console.log('Matching party names found:', matchingPartyNames)
-
-      if (matchingPartyNames.length > 0) {
-        const originalLength = filteredTasks.length
-        filteredTasks = filteredTasks.filter(task => {
-          const partyName = task.partyName ? task.partyName.toString().trim() : ''
-
-          const matches = matchingPartyNames.some(companyParty =>
-            partyName.toLowerCase() === companyParty.toLowerCase()
-          )
-
-          if (matches) {
-            console.log('Found matching task for party:', partyName, '| Task No:', task.taskNo)
-          }
-
-          return matches
-        })
-
-        console.log(`After company filtering: ${filteredTasks.length} tasks found (from ${originalLength} total)`)
-      } else {
-        console.log('No matching party names found, returning empty array')
-        filteredTasks = []
-      }
-    } else if (!isCompanyUser) {
-      // Apply user-based filtering for regular users
-      console.log('Applying user-based filtering...')
-      console.log('Filter data:', userFilterData)
-
-      filteredTasks = allTransformedTasks.filter(task => {
-        const canAccess = canUserAccessTask(task, userFilterData)
-        if (canAccess) {
-          console.log(`User can access task ${task.taskNo}`)
-        } else {
-          console.log(`User CANNOT access task ${task.taskNo}`)
-        }
-        return canAccess
-      })
-    }
-
-    console.log(`Final filtered tasks: ${filteredTasks.length}`)
-    return filteredTasks
+// Replace the transformSupabaseData function with this corrected version
+const transformSupabaseData = (rawData) => {
+  if (!rawData || !Array.isArray(rawData)) {
+    return { tasks: [], teamMembers1: [], teamMembers2: [] };
   }
 
-  // FIXED: Fetch data from Google Sheets with proper sequence
-  const fetchTasks = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      // STEP 1: Load Master Sheet data FIRST if company user
-      let currentMasterData = masterSheetData
-      if (isCompanyUser && !currentMasterData) {
-        currentMasterData = await loadMasterSheetData()
-        if (!currentMasterData) {
-          throw new Error('Failed to load company mapping data')
-        }
-      }
-
-      // STEP 2: Fetch FMS data
-      const timestamp = new Date().getTime()
-      const response = await fetch(`${GOOGLE_SHEETS_URL}?sheet=${SHEET_NAME}&timestamp=${timestamp}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (data.success && Array.isArray(data.data)) {
-        // STEP 3: Transform data WITH Master Sheet data if company user
-        const transformedTasks = transformSheetData(data.data, currentMasterData)
-        setAllTasks(transformedTasks)
-
-        // Filter data for pending and completed
-        const pending = transformedTasks.filter(item => {
-          const isNotCompleted = !item.submissionDate2 && !item.status1?.includes('completed by')
-          const hasAssignments = item.assignedMember1 || item.assignedMember2
-          const isStartedOrForwarded = item.submissionDate1 ||
-            item.status1?.includes('forward1') ||
-            item.status1?.includes('forward2') ||
-            hasAssignments
-
-          const isPending = isNotCompleted && isStartedOrForwarded
-
-          if (isPending) {
-            console.log(`Pending task: ${item.taskNo} - Status: ${item.status1}, AB: ${item.submissionDate1}, AC: ${item.submissionDate2}`)
-          }
-
-          return isPending
-        })
-
-        const history = transformedTasks.filter(item =>
-          item.status1?.includes('completed by') ||
-          (item.submissionDate1 && item.submissionDate2)
-        )
-
-        setPendingData(pending)
-        setHistoryData(history)
-        setUniqueParties([...new Set(transformedTasks.map(item => item.partyName).filter(Boolean))])
-
-        console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}`)
-      } else {
-        throw new Error(data.message || "Failed to fetch data")
-      }
-    } catch (err) {
-      console.error("Error fetching tasks:", err)
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+  if (rawData.length === 0) {
+    console.log("No task data found");
+    return { tasks: [], teamMembers1: [], teamMembers2: [] };
   }
+
+  // Extract unique team members
+  const membersX = new Set();
+  const membersY = new Set();
+
+  const tasks = rawData.map((row, index) => {
+    if (!row) return null;
+
+    // Get planned and actual dates from your screenshot column names
+    const plannedDate = row.planned2 || row.planned1;
+    const actualDate = row.actual2 || row.actual1;
+    
+    // Determine status based on planned/actual dates
+    let status = 'pending';
+    if (plannedDate && actualDate) {
+      status = 'completed';
+    } else if (plannedDate && !actualDate) {
+      status = 'assigned'; // Planned but not completed
+    }
+
+    const task = {
+      id: index + 1,
+      rowNumber: index + 2,
+
+      // Match column names from your screenshot
+      taskNo: row.task_no || '',
+      givenDate: formatDateTime(row.given_date),
+      postedBy: row.posted_by || '',
+      typeOfWork: row.type_of_work || '',
+      takenFrom: row.taken_from || '',
+      partyName: row.party_name || '',
+      systemName: row.system_name || '',
+      descriptionOfWork: row.description_of_work || '',
+      linkOfSystem: row.link_of_system || '',
+      attachmentFile: row.attachment_file || '',
+      priorityInCustomer: row.priority_in_customer || 'Medium',
+      notes: row.notes || '',
+      expectedDateToClose: formatDateTime(row.expected_date_to_close),
+
+      // Assignment tracking - using column names from screenshot
+      planned1: formatDateTime(row.planned1),
+      actual1: formatDateTime(row.actual1),
+      delay1: row.delay1 || '',
+      teamMemberName: row.team_member_name || '',
+      howManyTimeTabs: row.how_many_time_take || '',
+      remarks: row.remarks || '',
+      
+      planned2: formatDateTime(row.planned2),
+      actual2: formatDateTime(row.actual2),
+      delay2: row.delay2 || '',
+      assignedMember1: row.employee_name_1 || '',
+      assignedMember2: row.employee_name_2 || '',
+      timeRequired: row.how_many_time_take_2 || '',
+      remarks2: row.remarks_2 || '',
+      
+      planned3: formatDateTime(row.planned3),
+      actual3: formatDateTime(row.actual3),
+      delay3: row.delay3 || '',
+      
+      status: row.status || status,
+      systemList: row.system_list || '',
+
+      // Status for UI filtering
+      uiStatus: status,
+      priority: row.priority_in_customer || 'Medium',
+      isReassigned: false,
+      originalAssignee: row.employee_name_1 || ''
+    };
+
+    // Add team members to sets
+    if (task.assignedMember1) membersX.add(task.assignedMember1);
+    if (task.assignedMember2) membersY.add(task.assignedMember2);
+
+    return task;
+  }).filter(task => task !== null && task.taskNo);
+
+  const teamMembers1 = Array.from(membersX).filter(Boolean);
+  const teamMembers2 = Array.from(membersY).filter(Boolean);
+
+  // Sort tasks - show assigned but not completed first
+  const sortedTasks = tasks.sort((a, b) => {
+    const aIsAssignedPending = a.planned2 && !a.actual2;
+    const bIsAssignedPending = b.planned2 && !b.actual2;
+
+    if (aIsAssignedPending && !bIsAssignedPending) return -1;
+    if (!aIsAssignedPending && bIsAssignedPending) return 1;
+    return b.id - a.id;
+  });
+
+  console.log("Transformed tasks:", sortedTasks);
+  console.log("Team members 1:", teamMembers1);
+  console.log("Team members 2:", teamMembers2);
+
+  return { tasks: sortedTasks, teamMembers1, teamMembers2 };
+};
+
+// Replace the fetchTasks function with this corrected version
+const fetchTasks = async () => {
+  setLoading(true)
+  setError(null)
+
+  try {
+    // STEP 1: Load Master Sheet data FIRST if company user
+    let currentMasterData = masterSheetData
+    if (isCompanyUser && !currentMasterData) {
+      currentMasterData = await loadMasterSheetData()
+      if (!currentMasterData) {
+        throw new Error("Failed to load company mapping data")
+      }
+    }
+
+    // STEP 2: Fetch FMS tasks from Supabase
+    const { data: tasksData, error: tasksError } = await supabase
+      .from("FMS")
+      .select("*")
+
+    if (tasksError) throw tasksError
+    if (!Array.isArray(tasksData)) {
+      throw new Error("Invalid tasks data from Supabase")
+    }
+
+    console.log("Raw data from Supabase:", tasksData)
+
+    // STEP 3: Transform data using the new function
+    const { tasks: transformedTasks, teamMembers1: tm1, teamMembers2: tm2 } = transformSupabaseData(tasksData)
+    setAllTasks(transformedTasks)
+    setTeamMembers1(tm1) // Now this will work
+    setTeamMembers2(tm2) // Now this will work
+
+    // STEP 4: Filter data for pending and completed
+    const pending = transformedTasks.filter(item => item.planned3 && !item.actual3);
+    const history = transformedTasks.filter(item => item.planned3 && item.actual3);
+
+    setPendingData(pending)
+    setHistoryData(history)
+
+    // Collect unique parties
+    setUniqueParties([
+      ...new Set(transformedTasks.map(item => item.partyName).filter(Boolean)),
+    ])
+
+    console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}`)
+  } catch (err) {
+    console.error("Error fetching tasks:", err)
+    setError(err.message)
+  } finally {
+    setLoading(false)
+  }
+}
+
 
   // FIXED: useEffect to properly handle dependencies
-  useEffect(() => {
-    fetchTasks()
-    const interval = setInterval(fetchTasks, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [userFilterData, companyData?.companyName]) // Added companyName as dependency
+useEffect(() => {
+  if (userFilterData) {
+    setCurrentUser(userFilterData.username || '');
+    setUserRole(userFilterData.isAdmin ? 'admin' : 'user');
+  }
+  
+  fetchTasks();
+  const interval = setInterval(fetchTasks, 5 * 60 * 1000);
+  return () => clearInterval(interval);
+}, [userFilterData, companyData?.companyName]);
+ // Added companyName as dependency
 
-  // Filter tasks based on type and search criteria
-  const getFilteredTasks = () => {
-    let tasksToFilter = []
 
-    if (type === "pending") {
-      tasksToFilter = pendingData
-    } else if (type === "completed") {
-      tasksToFilter = historyData
-    } else {
-      tasksToFilter = [...pendingData, ...historyData]
-    }
 
-    return tasksToFilter.filter((task) => {
-      const matchesSearch =
-        task.systemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.descriptionOfWork?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.assignedMember1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.assignedMember2?.toLowerCase().includes(searchTerm.toLowerCase())
+// Filter tasks based on type and search criteria
+const getFilteredTasks = () => {
+  let tasksToFilter = [];
 
-      const matchesPriority = !filterPriority || task.priority === filterPriority
-      const matchesStatus = !filterStatus || task.status === filterStatus
-      const matchesParty = filterParty === 'all' || task.partyName === filterParty
-
-      return matchesSearch && matchesPriority && matchesStatus && matchesParty
-    })
+  if (type === "pending") {
+    tasksToFilter = pendingData;
+  } else if (type === "completed") {
+    tasksToFilter = historyData;
+  } else {
+    tasksToFilter = [...pendingData, ...historyData];
   }
 
+  console.log(`Total tasks before filtering: ${tasksToFilter.length}`);
+  
+  // For company users, filter by party_name matching company name
+  if (isCompanyUser && companyData?.companyName) {
+    const companyNameLower = companyData.companyName.toLowerCase().trim();
+    console.log(`Filtering for company: "${companyData.companyName}"`);
+    
+    tasksToFilter = tasksToFilter.filter(task => {
+      const taskPartyName = task.partyName ? task.partyName.toLowerCase().trim() : '';
+      return taskPartyName === companyNameLower;
+    });
+  }
+
+  // For non-company users, apply user-based filtering
+  if (!isCompanyUser && userFilterData) {
+    const beforeCount = tasksToFilter.length;
+    
+    // If user is admin or has showAllData permission, show all tasks
+    if (userFilterData.isAdmin || userFilterData.showAllData) {
+      console.log(`Showing all tasks for admin/user with showAllData permission`);
+    } 
+    // For regular users, filter tasks assigned to them
+    else if (userFilterData.username) {
+      const username = userFilterData.username.toLowerCase();
+      console.log(`Filtering for user: ${username}`);
+      
+      tasksToFilter = tasksToFilter.filter(task => {
+        const assignedMember1 = task.assignedMember1 ? task.assignedMember1.toString().toLowerCase() : '';
+        const assignedMember2 = task.assignedMember2 ? task.assignedMember2.toString().toLowerCase() : '';
+        
+        return assignedMember1 === username || assignedMember2 === username;
+      });
+    }
+    
+    console.log(`User filter: ${beforeCount} -> ${tasksToFilter.length} tasks`);
+  }
+
+  const finalTasks = tasksToFilter.filter((task) => {
+    const matchesSearch =
+      task.systemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.descriptionOfWork?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.partyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.assignedMember1?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.assignedMember2?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesPriority = !filterPriority || task.priority === filterPriority;
+    const matchesStatus = !filterStatus || task.status === filterStatus;
+    const matchesParty = filterParty === 'all' || task.partyName === filterParty;
+
+    return matchesSearch && matchesPriority && matchesStatus && matchesParty;
+  });
+
+  console.log(`Final filtered tasks: ${finalTasks.length}`);
+  return finalTasks;
+};
+
+
+
   const filteredTasks = getFilteredTasks()
+  console.log("hii",filteredTasks);
+  
 
   const handleTaskSelection = (taskId) => {
     const task = filteredTasks.find(t => t.id === taskId)
@@ -640,157 +669,160 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
   }
 
   // Task completion handler
-  const handleSubmitTasks = async () => {
-    if (selectedTasks.size === 0) {
-      alert("Please select at least one task to submit.")
-      return
-    }
+ const handleSubmitTasks = async () => {
+  if (selectedTasks.size === 0) {
+    alert("Please select at least one task to submit.");
+    return;
+  }
 
-    // Double-check all selected tasks before submission
-    const invalidTasks = []
+  // Double-check all selected tasks before submission
+  const invalidTasks = [];
+  for (const taskId of selectedTasks) {
+    const task = filteredTasks.find(t => t.id === taskId);
+    if (!task || !canUserSubmitTask(task)) {
+      invalidTasks.push(task?.taskNo || `ID:${taskId}`);
+    }
+  }
+
+  if (invalidTasks.length > 0) {
+    alert(`Cannot submit these tasks: ${invalidTasks.join(', ')}. They are either completed or not assigned to you.`);
+    // Remove invalid tasks from selection
+    const validTaskIds = [];
     for (const taskId of selectedTasks) {
-      const task = filteredTasks.find(t => t.id === taskId)
-      if (!task || !canUserSubmitTask(task)) {
-        invalidTasks.push(task?.taskNo || `ID:${taskId}`)
+      const task = filteredTasks.find(t => t.id === taskId);
+      if (task && canUserSubmitTask(task)) {
+        validTaskIds.push(taskId);
+      }
+    }
+    setSelectedTasks(new Set(validTaskIds));
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    const currentDate = new Date().toISOString();
+    const submittingUser = getCurrentUser();
+
+    console.log(`Starting submission for ${selectedTasks.size} tasks by user: ${submittingUser}`);
+
+    const results = [];
+    
+    for (const taskId of selectedTasks) {
+      const task = filteredTasks.find(t => t.id === taskId);
+      if (!task) continue;
+
+      console.log(`Processing task: ${task.taskNo}`);
+
+      // Final validation before API call
+      if (!canUserSubmitTask(task)) {
+        console.log(`Final validation failed for task: ${task.taskNo}`);
+        results.push({
+          taskNo: task.taskNo,
+          success: false,
+          error: "You are not authorized to submit this task"
+        });
+        continue;
+      }
+
+      try {
+        // Determine which submission field to update based on task status
+        // const statusAE = task.status1 ? task.status1.toString().toLowerCase() : '';
+        let updateData = {
+          status: `Completed `,
+          actual3: currentDate
+        };
+
+       
+        
+
+        // Update task in Supabase
+        const { error } = await supabase
+          .from('FMS')
+          .update(updateData)
+          .eq('task_no', task.taskNo);
+
+        if (error) {
+          console.log(`Supabase error for task ${task.taskNo}:`, error);
+          throw new Error(error.message || "Supabase update failed");
+        }
+
+        results.push({
+          taskNo: task.taskNo,
+          success: true,
+          message: "Completed"
+        });
+
+        console.log(`Successfully submitted task ${task.taskNo}`);
+
+      } catch (error) {
+        console.log(`Error for task ${task.taskNo}:`, error.message);
+        results.push({
+          taskNo: task.taskNo,
+          success: false,
+          error: error.message
+        });
       }
     }
 
-    if (invalidTasks.length > 0) {
-      alert(`Cannot submit these tasks: ${invalidTasks.join(', ')}. They are either completed or not assigned to you.`)
-      // Remove invalid tasks from selection
-      const validTaskIds = []
-      for (const taskId of selectedTasks) {
-        const task = filteredTasks.find(t => t.id === taskId)
-        if (task && canUserSubmitTask(task)) {
-          validTaskIds.push(taskId)
-        }
-      }
-      setSelectedTasks(new Set(validTaskIds))
-      return
+    const failedTasks = results.filter(r => !r.success);
+    if (failedTasks.length > 0) {
+      throw new Error(
+        `${failedTasks.length} tasks failed:\n` +
+        failedTasks.map(t => `${t.taskNo}: ${t.error}`).join('\n')
+      );
     }
 
-    setSubmitting(true)
+    // Update local state for immediate UI feedback
+    const completedTasks = pendingData.filter(t => selectedTasks.has(t.id));
+    const remainingPending = pendingData.filter(t => !selectedTasks.has(t.id));
 
-    try {
-      const currentDate = new Date().toISOString().split('T')[0]
-      const submittingUser = getCurrentUser()
+    const updatedCompletedTasks = completedTasks.map(t => ({
+      ...t,
+      status1: `completed by ${submittingUser}`,
+      status: 'completed',
+      submissionDate2: currentDate,
+      actual2: "Completed"
+    }));
 
-      console.log(`Starting submission for ${selectedTasks.size} tasks by user: ${submittingUser}`)
+    setPendingData(remainingPending);
+    setHistoryData(prev => [...prev, ...updatedCompletedTasks]);
 
-      const results = []
-      for (const taskId of selectedTasks) {
-        const task = filteredTasks.find(t => t.id === taskId)
-        if (!task) continue
-
-        console.log(`Processing task: ${task.taskNo}`)
-
-        // Final validation before API call
-        if (!canUserSubmitTask(task)) {
-          console.log(`Final validation failed for task: ${task.taskNo}`)
-          results.push({
-            taskNo: task.taskNo,
-            success: false,
-            error: "You are not authorized to submit this task"
-          })
-          continue
-        }
-
-        const formData = new FormData()
-        formData.append('action', 'Complete_task_assignment')
-        formData.append('sheetName', 'FMS')
-        formData.append('taskNo', task.taskNo)
-        formData.append('status1', `completed by ${submittingUser}`)
-        formData.append('submissionDate2', currentDate)
-        formData.append('completedBy', submittingUser)
-        formData.append('rowNumber', task.rowNumber)
-
-        console.log(`Submitting task ${task.taskNo} with status: completed by ${submittingUser}`)
-
-        try {
-          const response = await fetch(GOOGLE_SHEETS_URL, {
-            method: 'POST',
-            body: formData
-          })
-
-          const result = await response.json()
-          results.push({
-            taskNo: task.taskNo,
-            success: result.success,
-            message: result.message || "Completed"
-          })
-
-          if (!result.success) {
-            console.log(`API error for task ${task.taskNo}:`, result.error)
-            throw new Error(result.error || "Unknown error")
-          } else {
-            console.log(`Successfully submitted task ${task.taskNo}`)
+    setAllTasks(prev =>
+      prev.map(t =>
+        selectedTasks.has(t.id)
+          ? {
+            ...t,
+            status1: `completed by ${submittingUser}`,
+            status: 'completed',
+            submissionDate2: currentDate
           }
-        } catch (error) {
-          console.log(`Network error for task ${task.taskNo}:`, error.message)
-          results.push({
-            taskNo: task.taskNo,
-            success: false,
-            error: error.message
-          })
-        }
-      }
-
-      const failedTasks = results.filter(r => !r.success)
-      if (failedTasks.length > 0) {
-        throw new Error(
-          `${failedTasks.length} tasks failed:\n` +
-          failedTasks.map(t => `${t.taskNo}: ${t.error}`).join('\n')
-        )
-      }
-
-      const completedTasks = pendingData.filter(t => selectedTasks.has(t.id))
-      const remainingPending = pendingData.filter(t => !selectedTasks.has(t.id))
-
-      const updatedCompletedTasks = completedTasks.map(t => ({
-        ...t,
-        status1: `completed by ${submittingUser}`,
-        status: 'completed',
-        submissionDate2: currentDate,
-        actual2: "Completed"
-      }))
-
-      setPendingData(remainingPending)
-      setHistoryData(prev => [...prev, ...updatedCompletedTasks])
-
-      setAllTasks(prev =>
-        prev.map(t =>
-          selectedTasks.has(t.id)
-            ? {
-              ...t,
-              status1: `completed by ${submittingUser}`,
-              status: 'completed',
-              submissionDate2: currentDate
-            }
-            : t
-        )
+          : t
       )
+    );
 
-      alert(`Successfully completed ${results.length} tasks`)
-      setSelectedTasks(new Set())
+    alert(`Successfully completed ${results.length} tasks`);
+    setSelectedTasks(new Set());
 
-    } catch (error) {
-      console.error("Submission error:", error)
-      alert(`Error: ${error.message}`)
-    } finally {
-      setSubmitting(false)
-      fetchTasks()
-    }
+  } catch (error) {
+    console.error("Submission error:", error);
+    alert(`Error: ${error.message}`);
+  } finally {
+    setSubmitting(false);
+    // Refresh data from Supabase to ensure consistency
+    fetchTasks();
   }
+};
 
-  const handleEditClick = (task) => {
-    if (isCompanyUser) {
-      alert("Company users have read-only access and cannot edit tasks.")
-      return
-    }
+  // const handleEditClick = (task) => {
+  //   if (isCompanyUser) {
+  //     alert("Company users have read-only access and cannot edit tasks.")
+  //     return
+  //   }
 
-    setSelectedTaskForAssign(task)
-    setShowAssignPopup(true)
-  }
+  //   setSelectedTaskForAssign(task)
+  //   setShowAssignPopup(true)
+  // }
 
   // Get available members for forwarding based on current assignment
   const getAvailableMembersForForwarding = (task) => {
@@ -1073,370 +1105,372 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
       )}
 
       {/* Tasks Table with Fixed Header and Scrollable Body */}
-    <div className="bg-white rounded-lg border border-gray-200">
-  <div className="max-h-[70vh] overflow-auto">
-    {/* Desktop Table View */}
-    <div className="hidden lg:block">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-          <tr>
-            {/* Select column - Only for non-admin, non-company users */}
-            {!isCompanyUser && !isAdminUser && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Select</th>
-            )}
-
-            {/* Admin assignment columns */}
-            {!isCompanyUser && isAdminUser && (
-              <>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned By</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member1</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member2</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Time Required</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Remarks</th>
-              </>
-            )}
-
-            {/* Non-admin, non-company assignment columns */}
-            {!isCompanyUser && !isAdminUser && (
-              <>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned By</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member1</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member2</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Time Required</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Remarks</th>
-              </>
-            )}
-
-            {/* Common columns for all users */}
-            {visibleColumns.map(column => (
-              <th key={column.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">
-                {column.label}
-              </th>
-            ))}
-
-            {/* Status column - For all non-company users but placed at the end */}
-            {!isCompanyUser && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Status</th>
-            )}
-
-            {/* Actions column - Only for non-admin, non-company users */}
-            {!isCompanyUser && !isAdminUser && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Actions</th>
-            )}
-          </tr>
-        </thead>
-
-        <tbody className="bg-white divide-y divide-gray-200">
-          {filteredTasks.map((task) => (
-            <tr key={task.id} className="hover:bg-gray-50">
-              {/* Select cell - Only for non-admin, non-company users */}
-              {!isCompanyUser && !isAdminUser && (
-                <td className="px-4 py-3">
-                  {type === "pending" && (
-                    <input
-                      type="checkbox"
-                      checked={selectedTasks.has(task.id)}
-                      onChange={() => handleTaskSelection(task.id)}
-                      disabled={!isTaskSelectable(task)}
-                      className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${!isTaskSelectable(task) ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                    />
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="max-h-[70vh] overflow-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                <tr>
+                  {/* Select column - Only for non-admin, non-company users */}
+                  {!isCompanyUser && !isAdminUser && type === "pending" &&  (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Select</th>
                   )}
-                </td>
-              )}
 
-              {/* Admin assignment cells */}
-              {!isCompanyUser && isAdminUser && (
-                <>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.teamMembers || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.assignedMember1 || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.assignedMember2 || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900">
-                      {task.timeRequired || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 max-w-xs truncate block">
-                      {task.remarks || '-'}
-                    </span>
-                  </td>
-                </>
-              )}
-
-              {/* Non-admin, non-company assignment cells */}
-              {!isCompanyUser && !isAdminUser && (
-                <>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.teamMembers || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.assignedMember1 || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 font-medium">
-                      {task.assignedMember2 || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900">
-                      {task.timeRequired || '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-900 max-w-xs truncate block">
-                      {task.remarks || '-'}
-                    </span>
-                  </td>
-                </>
-              )}
-
-              {/* Common cells for all users */}
-              {visibleColumns.map(column => (
-                <td key={column.key} className="px-4 py-3 text-sm text-gray-900">
-                  {column.key === 'linkOfSystem' && task[column.key] ? (
-                    <a
-                      href={task[column.key]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline inline-flex items-center space-x-1"
-                    >
-                      <span>Link</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  ) : column.key === 'attachmentFile' && task[column.key] ? (
-                    <a
-                      href={task[column.key]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1 transition-colors"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>View Attachment</span>
-                    </a>
-                  ) : column.key === 'expectedDateToClose' || column.key === 'givenDate' ? (
-                    formatDateToDDMMYY(task[column.key])
-                  ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
-                    <span className="max-w-xs truncate block">{task[column.key]}</span>
-                  ) : (
-                    task[column.key]
+                  {/* Admin assignment columns */}
+                  {!isCompanyUser && isAdminUser && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned By</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member1</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member2</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Time Required</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Remarks</th>
+                    </>
                   )}
-                </td>
-              ))}
-              {/* Status cell - For all non-company users but placed at the end */}
-              {!isCompanyUser && (
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes('completed by') ? 'bg-green-100 text-green-800' :
-                      task.status1?.includes('forward2') ? 'bg-purple-100 text-purple-800' :
-                        task.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800' :
-                          task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                    }`}>
-                    {task.status1 || task.status || 'Not Started'}
-                  </span>
-                </td>
-              )}
 
-              {/* Actions cell - Only for non-admin, non-company users */}
-              {!isCompanyUser && !isAdminUser && (
-                <td className="px-2 sm:px-4 py-3">
-                  <div className="flex items-center space-x-1 sm:space-x-2">
-                    <button className="p-1 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEditClick(task)}
-                      className="p-1 sm:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    >
-                      <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                    <button className="p-1 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                  {/* Non-admin, non-company assignment columns */}
+                  {!isCompanyUser && !isAdminUser && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned By</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member1</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Assigned Member2</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Time Required</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Remarks</th>
+                    </>
+                  )}
 
-    {/* Mobile Card View */}
-    <div className="lg:hidden">
-      <div className="space-y-4 p-4">
-        {filteredTasks.map((task) => (
-          <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            {/* Select checkbox for non-admin, non-company users */}
-            {!isCompanyUser && !isAdminUser && type === "pending" && (
-              <div className="flex items-center mb-3">
-                <input
-                  type="checkbox"
-                  checked={selectedTasks.has(task.id)}
-                  onChange={() => handleTaskSelection(task.id)}
-                  disabled={!isTaskSelectable(task)}
-                  className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3 ${!isTaskSelectable(task) ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                />
-                <span className="text-sm font-medium text-gray-900">Select Task</span>
-              </div>
-            )}
+                  {/* Common columns for all users */}
+                  {visibleColumns.map(column => (
+                    <th key={column.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">
+                      {column.label}
+                    </th>
+                  ))}
 
-            {/* Status Badge */}
-            {!isCompanyUser && (
-              <div className="mb-3">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes('completed by') ? 'bg-green-100 text-green-800' :
-                    task.status1?.includes('forward2') ? 'bg-purple-100 text-purple-800' :
-                      task.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800' :
-                        task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                  }`}>
-                  {task.status1 || task.status || 'Not Started'}
-                </span>
-              </div>
-            )}
+                  {/* Status column - For all non-company users but placed at the end */}
+                  {!isCompanyUser && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Status</th>
+                  )}
 
-            {/* Assignment Info for non-company users */}
-            {!isCompanyUser && (
-              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">
-                    {isAdminUser ? "Assigned By" : "Assigned By"}
-                  </div>
-                  <div className="text-gray-900 font-medium">{task.teamMembers || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">Time Required</div>
-                  <div className="text-gray-900">{task.timeRequired || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">
-                    {isAdminUser ? "Assigned Member1" : "Assigned Member1"}
-                  </div>
-                  <div className="text-gray-900 font-medium">{task.assignedMember1 || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">
-                    {isAdminUser ? "Assigned Member2" : "Assigned Member2"}
-                  </div>
-                  <div className="text-gray-900 font-medium">{task.assignedMember2 || '-'}</div>
-                </div>
-              </div>
-            )}
+                  {/* Actions column - Only for non-admin, non-company users */}
+                  {/* {!isCompanyUser && !isAdminUser && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Actions</th>
+                  )} */}
+                </tr>
+              </thead>
 
-            {/* Remarks for non-company users */}
-            {!isCompanyUser && task.remarks && (
-              <div className="mb-4">
-                <div className="text-xs text-gray-500 uppercase tracking-wider">Remarks</div>
-                <div className="text-sm text-gray-900 break-words">{task.remarks}</div>
-              </div>
-            )}
-
-            {/* Task Details from visibleColumns */}
-            <div className="space-y-3">
-              {visibleColumns.map(column => (
-                <div key={column.key}>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">{column.label}</div>
-                  <div className="text-sm text-gray-900 mt-1">
-                    {column.key === 'linkOfSystem' && task[column.key] ? (
-                      <a
-                        href={task[column.key]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center space-x-1"
-                      >
-                        <span>View Link</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                    ) : column.key === 'attachmentFile' && task[column.key] ? (
-                      <a
-                        href={task[column.key]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1 transition-colors"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span>View Attachment</span>
-                      </a>
-                    ) : column.key === 'expectedDateToClose' || column.key === 'givenDate' ? (
-                      formatDateToDDMMYY(task[column.key]) || '-'
-                    ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
-                      <span className="break-words">{task[column.key] || '-'}</span>
-                    ) : (
-                      task[column.key] || '-'
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTasks.map((task) => (
+                  <tr key={task.id} className="hover:bg-gray-50">
+                    {/* Select cell - Only for non-admin, non-company users */}
+                    {!isCompanyUser && !isAdminUser && type === "pending" &&  (
+                      <td className="px-4 py-3">
+                        {type === "pending" && (
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.has(task.id)}
+                            onChange={() => handleTaskSelection(task.id)}
+                            disabled={!isTaskSelectable(task)}
+                            className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${!isTaskSelectable(task) ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                          />
+                        )}
+                      </td>
                     )}
+
+                    {/* Admin assignment cells */}
+                    {!isCompanyUser && isAdminUser && (
+                      <>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.teamMemberName || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.assignedMember1 || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.assignedMember2 || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900">
+                            {task.timeRequired || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 max-w-xs truncate block">
+                            {task.remarks || '-'}
+                          </span>
+                        </td>
+                      </>
+                    )}
+
+                    {/* Non-admin, non-company assignment cells */}
+                    {!isCompanyUser && !isAdminUser && (
+                      <>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.teamMemberName || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.assignedMember1 || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 font-medium">
+                            {task.assignedMember2 || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900">
+                            {task.timeRequired || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-900 max-w-xs truncate block">
+                            {task.remarks || '-'}
+                          </span>
+                        </td>
+                      </>
+                    )}
+
+                    {/* Common cells for all users */}
+                    {visibleColumns.map(column => (
+                      <td key={column.key} className="px-4 py-3 text-sm text-gray-900">
+                        {column.key === 'linkOfSystem' && task[column.key] ? (
+                          <a
+                            href={task[column.key]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline inline-flex items-center space-x-1"
+                          >
+                            <span>Link</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        ) : column.key === 'attachmentFile' && task[column.key] ? (
+                          <a
+                            href={task[column.key]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1 transition-colors"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span>View Attachment</span>
+                          </a>
+                        ) : column.key === 'expectedDateToClose' || column.key === 'givenDate' ? (
+                          formatDateToDDMMYY(task[column.key])
+                        ) : column.key === 'expectedDateToClose' || column.key === 'givenDate' || column.key === 'actualDate' ? (
+                          formatDateToDDMMYY(task[column.key])
+                        ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
+                          <span className="max-w-xs truncate block">{task[column.key]}</span>
+                        ) : (
+                          task[column.key]
+                        )}
+                      </td>
+                    ))}
+                    {/* Status cell - For all non-company users but placed at the end */}
+                    {!isCompanyUser && (
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes('completed by') ? 'bg-green-100 text-green-800' :
+                          task.status1?.includes('forward2') ? 'bg-purple-100 text-purple-800' :
+                            task.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800' :
+                              task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                          }`}>
+                          {task.status1 || task.status || 'Not Started'}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* Actions cell - Only for non-admin, non-company users */}
+                    {/* {!isCompanyUser && !isAdminUser && (
+                      <td className="px-2 sm:px-4 py-3">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <button className="p-1 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditClick(task)}
+                            className="p-1 sm:p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button className="p-1 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )} */}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden">
+            <div className="space-y-4 p-4">
+              {filteredTasks.map((task) => (
+                <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  {/* Select checkbox for non-admin, non-company users */}
+                  {!isCompanyUser && !isAdminUser && type === "pending" && (
+                    <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.has(task.id)}
+                        onChange={() => handleTaskSelection(task.id)}
+                        disabled={!isTaskSelectable(task)}
+                        className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3 ${!isTaskSelectable(task) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                      />
+                      <span className="text-sm font-medium text-gray-900">Select Task</span>
+                    </div>
+                  )}
+
+                  {/* Status Badge */}
+                  {!isCompanyUser && (
+                    <div className="mb-3">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${task.status1?.includes('completed by') ? 'bg-green-100 text-green-800' :
+                        task.status1?.includes('forward2') ? 'bg-purple-100 text-purple-800' :
+                          task.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800' :
+                            task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                        }`}>
+                        {task.status1 || task.status || 'Not Started'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Assignment Info for non-company users */}
+                  {!isCompanyUser && (
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                          {isAdminUser ? "Assigned By" : "Assigned By"}
+                        </div>
+                        <div className="text-gray-900 font-medium">{task.teamMembers || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">Time Required</div>
+                        <div className="text-gray-900">{task.timeRequired || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                          {isAdminUser ? "Assigned Member1" : "Assigned Member1"}
+                        </div>
+                        <div className="text-gray-900 font-medium">{task.assignedMember1 || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">
+                          {isAdminUser ? "Assigned Member2" : "Assigned Member2"}
+                        </div>
+                        <div className="text-gray-900 font-medium">{task.assignedMember2 || '-'}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remarks for non-company users */}
+                  {!isCompanyUser && task.remarks && (
+                    <div className="mb-4">
+                      <div className="text-xs text-gray-500 uppercase tracking-wider">Remarks</div>
+                      <div className="text-sm text-gray-900 break-words">{task.remarks}</div>
+                    </div>
+                  )}
+
+                  {/* Task Details from visibleColumns */}
+                  <div className="space-y-3">
+                    {visibleColumns.map(column => (
+                      <div key={column.key}>
+                        <div className="text-xs text-gray-500 uppercase tracking-wider">{column.label}</div>
+                        <div className="text-sm text-gray-900 mt-1">
+                          {column.key === 'linkOfSystem' && task[column.key] ? (
+                            <a
+                              href={task[column.key]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline inline-flex items-center space-x-1"
+                            >
+                              <span>View Link</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          ) : column.key === 'attachmentFile' && task[column.key] ? (
+                            <a
+                              href={task[column.key]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1 transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span>View Attachment</span>
+                            </a>
+                          ) : column.key === 'expectedDateToClose' || column.key === 'givenDate' || column.key === 'actualDate' ? (
+                            formatDateToDDMMYY(task[column.key]) || '-'
+                          ) : column.key === 'descriptionOfWork' || column.key === 'notes' ? (
+                            <span className="break-words">{task[column.key] || '-'}</span>
+                          ) : (
+                            task[column.key] || '-'
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Action Buttons for non-admin, non-company users */}
+                  {/* {!isCompanyUser && !isAdminUser && (
+                    <div className="flex justify-end space-x-2 mt-4 pt-3 border-t border-gray-200">
+                      <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(task)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )} */}
                 </div>
               ))}
             </div>
-
-            {/* Action Buttons for non-admin, non-company users */}
-            {!isCompanyUser && !isAdminUser && (
-              <div className="flex justify-end space-x-2 mt-4 pt-3 border-t border-gray-200">
-                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleEditClick(task)}
-                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
+        </div>
 
-  {/* Empty State */}
-  {filteredTasks.length === 0 && (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Clock className="w-8 h-8 text-gray-400" />
+        {/* Empty State */}
+        {filteredTasks.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+            <p className="text-gray-500 px-4">
+              {isAdminUser
+                ? 'No tasks found matching your criteria.'
+                : isCompanyUser
+                  ? `No tasks found for company: ${companyData.companyName}`
+                  : 'No tasks assigned to you match the criteria.'
+              }
+            </p>
+            <Button
+              onClick={fetchTasks}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Refresh Data
+            </Button>
+          </div>
+        )}
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-      <p className="text-gray-500 px-4">
-        {isAdminUser
-          ? 'No tasks found matching your criteria.'
-          : isCompanyUser
-            ? `No tasks found for company: ${companyData.companyName}`
-            : 'No tasks assigned to you match the criteria.'
-        }
-      </p>
-      <Button
-        onClick={fetchTasks}
-        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-      >
-        Refresh Data
-      </Button>
-    </div>
-  )}
-</div>
 
       {/* Assignment Popup with Clean & Classy UI */}
       {showAssignPopup && !isCompanyUser && (
@@ -1487,7 +1521,7 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
                       </div>
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">Assigned by: {selectedTaskForAssign?.teamMembers}</span>
+                        <span className="text-sm text-gray-600">Assigned by: {selectedTaskForAssign?.teamMemberName}</span>
                       </div>
                     </div>
 
@@ -1509,8 +1543,8 @@ export default function TaskList({ type = "all", userFilterData = null, companyD
                     <div className="flex items-center space-x-3">
                       <span className="text-sm font-medium text-gray-700">Current Status:</span>
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${selectedTaskForAssign?.status1?.includes('forward2') ? 'bg-purple-100 text-purple-800 border border-purple-200' :
-                          selectedTaskForAssign?.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                            'bg-gray-100 text-gray-800 border border-gray-200'
+                        selectedTaskForAssign?.status1?.includes('forward1') ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                          'bg-gray-100 text-gray-800 border border-gray-200'
                         }`}>
                         {selectedTaskForAssign?.status1 || 'Normal'}
                       </span>

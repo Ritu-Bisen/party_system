@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Lock, Eye, EyeOff, User, Shield, Building2 } from "lucide-react"
+import supabase from "../supabaseClient"
 
 // Button component
 const Button = ({ children, className = "", ...props }) => {
@@ -43,24 +44,16 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
   }, [onLogin])
 
   // Function to validate admin credentials
-  const validateAdminCredentials = (username, password) => {
-    console.log('🔐 Validating admin credentials for:', username);
-    
-    // Admin hardcoded credentials validation
-    const adminCredentials = [
-      { username: 'admin', password: 'admin123' },
-      { username: 'superadmin', password: 'super123' },
-      // Add more admin credentials as needed
-    ];
+const validateAdminCredentials = (username, password) => {
+  const adminCredentials = [
+    { username: 'admin', password: 'admin123' },
+    { username: 'superadmin', password: 'super123' },
+  ];
 
-    const isValidAdmin = adminCredentials.some(
-      admin => admin.username === username && admin.password === password
-    );
-
-    console.log('✅ Admin validation result:', isValidAdmin);
-    return isValidAdmin;
-  }
-
+  return adminCredentials.some(
+    admin => admin.username === username && admin.password === password
+  );
+};
   // Function to get Master Sheet and FMS data for user filtering
   const getUserFilterData = async (username, role) => {
     console.log('🔍 Starting user validation for:', username, 'role:', role);
@@ -453,175 +446,150 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
     setError("")
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    try {
-      console.log('🔐 Starting login process for:', loginType, formData.username);
+  try {
+    console.log("🔐 Starting login process for:", loginType, formData.username);
 
-      // ✅ FIXED: Role-based validation with proper checking
-      if (loginType === 'admin') {
-        console.log('👤 Admin login attempt');
+    // ✅ Admin login
+    if (loginType === "admin") {
+      const { data, error } = await supabase
+        .from("master")
+        .select("user_id, user_role, pagination_for_user, user_password")
+        .eq("user_id", formData.username)
+        .eq("user_password", formData.password)
+        .eq("user_role", "admin")
+        .single();
 
-        // First check if credentials are admin credentials
-        const isValidAdmin = validateAdminCredentials(formData.username, formData.password);
-        
-        if (!isValidAdmin) {
-          throw new Error('Invalid admin credentials. Please check your admin username and password.');
-        }
-
-        console.log('✅ Admin credentials validated');
-        const sessionData = {
-          role: 'admin',
-          username: formData.username,
-          pagination: null,
-          filterData: { isAdmin: true, showAllData: true },
-          companyData: null
-        };
-
-        sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-        sessionStorage.setItem('currentPage', 'dashboard'); 
-        onLogin('admin', formData.username, null, { isAdmin: true, showAllData: true }, null);
-        return;
+      if (error || !data) {
+        throw new Error("Invalid admin credentials.");
       }
 
-      if (loginType === 'company') {
-        console.log('🏢 Company login attempt - using backend validation');
-
-        if (!formData.username || !formData.password) {
-          throw new Error('Company ID and password are required');
+      // Ensure pagination is properly formatted
+      let paginationData = data.pagination_for_user;
+      
+      // If pagination is a string, try to parse it as JSON
+      if (typeof paginationData === 'string') {
+        try {
+          paginationData = JSON.parse(paginationData);
+        } catch (parseError) {
+          console.warn("Could not parse pagination as JSON, using as string:", paginationData);
         }
-
-        // ✅ FIXED: First check if it's not admin credentials trying to login as company
-        const isAdminCredentials = validateAdminCredentials(formData.username, formData.password);
-        if (isAdminCredentials) {
-          throw new Error('Admin credentials cannot be used for company login. Please select Admin login type.');
-        }
-
-        // Use the backend validateUser action for company login
-        const formPayload = new URLSearchParams();
-        formPayload.append("action", "validateUser");
-        formPayload.append("loginType", "company");
-        formPayload.append("username", formData.username);
-        formPayload.append("password", formData.password);
-
-        const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formPayload,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-          throw new Error(data.error || 'Company validation failed');
-        }
-
-        console.log('✅ Company login successful');
-
-        const sessionData = {
-          role: 'company',
-          username: formData.username,
-          pagination: data.user.pagination,
-          filterData: null,
-          companyData: {
-            companyId: data.user.companyId,
-            companyName: data.user.companyName,
-            paginationNew: data.user.pagination
-          }
-        };
-
-        sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-        sessionStorage.setItem('currentPage', 'dashboard');
-        onLogin('company', formData.username, data.user.pagination, null, sessionData.companyData);
-        return;
       }
-if (loginType === 'user') {
-  console.log('👤 User login attempt - using backend validation');
 
-  if (!formData.username || !formData.password) {
-    throw new Error('Username and password are required');
-  }
+      const sessionData = {
+        role: "admin",
+        username: formData.username,
+        pagination: paginationData, // This could be object or string
+        filterData: { isAdmin: true, showAllData: true },
+        companyData: null,
+        permissions: data.permissions || []
+      };
 
-  // Check if it's not admin credentials trying to login as user
-  const isAdminCredentials = validateAdminCredentials(formData.username, formData.password);
-  if (isAdminCredentials) {
-    throw new Error('Admin credentials cannot be used for user login. Please select Admin login type.');
-  }
-
-  // Use the backend validateUser action for user login
-  const formPayload = new URLSearchParams();
-  formPayload.append("action", "validateUser");
-  formPayload.append("loginType", "user");
-  formPayload.append("username", formData.username);
-  formPayload.append("password", formData.password);
-
-  const response = await fetch(
-    "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formPayload,
+      sessionStorage.setItem("userSession", JSON.stringify(sessionData));
+      onLogin("admin", formData.username, sessionData.pagination, sessionData.filterData, null);
+      return;
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Server error: ${response.status}`);
-  }
+    // ✅ User login
+    if (loginType === "user") {
+      const { data, error } = await supabase
+        .from("master")
+        .select("user_id, user_role, pagination_for_user, user_password")
+        .eq("user_id", formData.username)
+        .eq("user_password", formData.password)
+        .eq("user_role", "user")
+        .single();
 
-  const data = await response.json();
+      if (error || !data) {
+        throw new Error("Invalid user credentials.");
+      }
 
-  if (!data.success) {
-    if (data.error && data.error.includes('not found')) {
-      throw new Error('Invalid user credentials. User not found in the system.');
+      // Ensure pagination is properly formatted
+      let paginationData = data.pagination_for_user;
+      
+      // If pagination is a string, try to parse it as JSON
+      if (typeof paginationData === 'string') {
+        try {
+          paginationData = JSON.parse(paginationData);
+        } catch (parseError) {
+          console.warn("Could not parse pagination as JSON, using as string:", paginationData);
+        }
+      }
+
+      const sessionData = {
+        role: "user",
+        username: formData.username,
+        pagination: paginationData, // This could be object or string
+        filterData: {
+          username: formData.username,
+          name: formData.username,
+          userExists: true,
+          isAdmin: false,
+          showAllData: false,
+          ...(data.filter_data || {})
+        },
+        companyData: null
+      };
+
+      sessionStorage.setItem("userSession", JSON.stringify(sessionData));
+      onLogin("user", formData.username, sessionData.pagination, sessionData.filterData, null);
+      return;
     }
-    throw new Error(data.error || 'User validation failed');
-  }
 
-  console.log('✅ User login successful');
+    // ✅ Company login
+    if (loginType === "company") {
+      const { data, error } = await supabase
+        .from("master")
+        .select("company_id, company_password, company_name, pagination_for_company")
+        .eq("company_id", formData.username)
+        .eq("company_password", formData.password)
+        .single();
 
-  // For user login, we still need to get additional filter data
-  const userResult = await getUserFilterData(formData.username, 'user');
+      if (error || !data) {
+        throw new Error("Invalid company credentials.");
+      }
 
-  // FIXED: Ensure username is always available in filterData
-  const sessionData = {
-    role: 'user',
-    username: formData.username,
-    pagination: data.user.pagination,
-    filterData: {
-      ...userResult,
-      username: formData.username, // ← ADD THIS LINE
-      name: formData.username,     // ← ADD THIS LINE AS BACKUP
-      userExists: userResult.userExists || true,
-      isAdmin: false,
-      showAllData: false
-    },
-    companyData: null
-  };
+      // Ensure pagination is properly formatted
+      let paginationData = data.pagination_for_company;
+      
+      // If pagination is a string, try to parse it as JSON
+      if (typeof paginationData === 'string') {
+        try {
+          paginationData = JSON.parse(paginationData);
+        } catch (parseError) {
+          console.warn("Could not parse pagination as JSON, using as string:", paginationData);
+        }
+      }
 
-  console.log('📋 Session data being stored:', sessionData); // ← ADD DEBUG LOG
+      const sessionData = {
+        role: "company",
+        username: formData.username,
+        pagination: paginationData, // This could be object or string
+        filterData: null,
+        companyData: {
+          companyId: data.company_id,
+          companyName: data.company_name,
+          paginationNew: paginationData || null
+        }
+      };
 
-  sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-  sessionStorage.setItem('currentPage', 'dashboard');
-  onLogin('user', formData.username, data.user.pagination, sessionData.filterData, null);
-  return;
-}
-    } catch (error) {
-      console.error("❌ Login error:", error);
-      setError(error.message || "Login failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+      sessionStorage.setItem("userSession", JSON.stringify(sessionData));
+      onLogin("company", formData.username, sessionData.pagination, null, sessionData.companyData);
+      return;
     }
-  };
+
+    throw new Error("Invalid login type specified.");
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    setError(error.message || "Login failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const resetForm = () => {
     setFormData({ username: "", password: "" })

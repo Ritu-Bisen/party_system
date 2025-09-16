@@ -50,8 +50,8 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
     { id: "developer-stage", label: getTabLabel("developer-stage", userRole), icon: Code, key: "developer-stage" },
     { id: "pending-tasks", label: getTabLabel("pending-tasks", userRole), icon: Clock, key: "pending-tasks" },
     { id: "completed-tasks", label: getTabLabel("completed-tasks", userRole), icon: CheckCircle, key: "completed-tasks" },
-    { id: "troubleshoot", label: getTabLabel("troubleshoot", userRole), icon: Settings, key: "troubleshoot" },
     { id: "systems", label: getTabLabel("systems", userRole), icon: Activity, key: "systems" },
+     { id: "troubleshoot", label: getTabLabel("troubleshoot", userRole), icon: Settings, key: "troubleshoot" },
   ]
 
   useEffect(() => {
@@ -106,73 +106,104 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
   }, [])
 
   // Handle company permissions using paginationnew from Column E
-  const handleCompanyPermissions = (userData) => {
-    console.log("🔧 Processing company permissions...")
+const handleCompanyPermissions = (userData) => {
+  console.log("🔧 Processing company permissions...")
 
-    // Check if company has companyData with paginationNew
-    if (userData.companyData && userData.companyData.paginationNew) {
-      const paginationNew = userData.companyData.paginationNew
-      console.log("📄 Company paginationNew:", paginationNew)
+  const paginationNew = userData.companyData?.paginationNew;
+  const pagination = userData.pagination;
 
+  if (paginationNew) {
+    console.log("📄 Company paginationNew:", paginationNew);
+
+    if (typeof paginationNew === "string") {
       if (paginationNew.toLowerCase() === "all") {
-        console.log("✅ Company has access to all pages")
-        setUserPermissions(["all"])
+        console.log("✅ Company has access to all pages");
+        setUserPermissions(["all"]);
       } else {
-        // Parse paginationNew string - split by comma and clean
         const permissions = paginationNew
-          .split(',')
+          .split(",")
           .map(perm => perm.trim().toLowerCase())
-          .filter(perm => perm.length > 0)
+          .filter(perm => perm.length > 0);
 
-        console.log("🔑 Company parsed permissions:", permissions)
-        setUserPermissions(permissions)
+        console.log("🔑 Company parsed permissions (string):", permissions);
+        setUserPermissions(permissions);
       }
-    } else if (userData.pagination) {
-      // Fallback to pagination if paginationNew not available
-      console.log("⚠️ Using fallback pagination for company:", userData.pagination)
-
-      if (userData.pagination.toLowerCase() === "all") {
-        setUserPermissions(["all"])
-      } else {
-        const permissions = userData.pagination
-          .split(',')
-          .map(perm => perm.trim().toLowerCase())
-          .filter(perm => perm.length > 0)
-
-        console.log("🔑 Company fallback permissions:", permissions)
-        setUserPermissions(permissions)
-      }
+    } else if (Array.isArray(paginationNew)) {
+      const permissions = paginationNew.map(perm => perm.toLowerCase());
+      console.log("🔑 Company parsed permissions (array):", permissions);
+      setUserPermissions(permissions);
     } else {
-      console.log("❌ No pagination data found for company - showing dashboard only")
-      setUserPermissions(["dashboard"])
+      console.warn("⚠️ Unexpected paginationNew format:", paginationNew);
+      setUserPermissions(["dashboard"]);
     }
+  } else if (pagination) {
+    console.log("⚠️ Using fallback pagination for company:", pagination);
+
+    if (typeof pagination === "string") {
+      if (pagination.toLowerCase() === "all") {
+        setUserPermissions(["all"]);
+      } else {
+        const permissions = pagination
+          .split(",")
+          .map(perm => perm.trim().toLowerCase())
+          .filter(perm => perm.length > 0);
+
+        console.log("🔑 Company fallback permissions (string):", permissions);
+        setUserPermissions(permissions);
+      }
+    } else if (Array.isArray(pagination)) {
+      const permissions = pagination.map(perm => perm.toLowerCase());
+      console.log("🔑 Company fallback permissions (array):", permissions);
+      setUserPermissions(permissions);
+    } else {
+      console.warn("⚠️ Unexpected pagination format:", pagination);
+      setUserPermissions(["dashboard"]);
+    }
+  } else {
+    console.log("❌ No pagination data found for company - showing dashboard only");
+    setUserPermissions(["dashboard"]);
   }
+};
+
 
   // Handle user permissions using existing pagination logic
-  const handleUserPermissions = (userData) => {
-    console.log("🔧 Processing user permissions...")
+ const handleUserPermissions = (userData) => {
+  console.log("🔧 Processing user permissions...")
 
-    if (userData.pagination) {
-      console.log("📄 User pagination:", userData.pagination)
+  const pagination = userData.pagination;
 
-      if (userData.pagination.toLowerCase() === "all") {
-        console.log("✅ User has access to all pages")
-        setUserPermissions(["all"])
+  if (pagination) {
+    console.log("📄 User pagination:", pagination);
+
+    if (typeof pagination === "string") {
+      // case: string like "all" or "pending-tasks,completed-tasks"
+      if (pagination.toLowerCase() === "all") {
+        console.log("✅ User has access to all pages");
+        setUserPermissions(["all"]);
       } else {
-        // Parse pagination string
-        const permissions = userData.pagination
-          .split(',')
+        const permissions = pagination
+          .split(",")
           .map(perm => perm.trim().toLowerCase())
-          .filter(perm => perm.length > 0)
+          .filter(perm => perm.length > 0);
 
-        console.log("🔑 User parsed permissions:", permissions)
-        setUserPermissions(permissions)
+        console.log("🔑 User parsed permissions:", permissions);
+        setUserPermissions(permissions);
       }
+    } else if (Array.isArray(pagination)) {
+      // case: already an array
+      const permissions = pagination.map(perm => perm.toLowerCase());
+      console.log("🔑 User array permissions:", permissions);
+      setUserPermissions(permissions);
     } else {
-      console.log("❌ No pagination found for user - showing default")
-      setUserPermissions(["dashboard"])
+      console.warn("⚠️ Unexpected pagination format:", pagination);
+      setUserPermissions(["dashboard"]);
     }
+  } else {
+    console.log("❌ No pagination found for user - showing default");
+    setUserPermissions(["dashboard"]);
   }
+};
+
 
   // Filter tabs based on permissions
   const getVisibleTabs = () => {
@@ -250,6 +281,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
     <aside className="w-72 bg-white border-r border-gray-200 min-h-screen shadow-sm">
       <nav className="p-4">
         {/* User Info Section */}
+       {/* User Info Section */}
         {userInfo && (
           <div className="mb-6 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
             <div className="flex items-center space-x-3">
@@ -258,15 +290,13 @@ const Sidebar = ({ activeTab, setActiveTab, onClose, isMobile }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800 truncate">
-                  {userInfo.username || "Unknown User"}
+                  {userInfo.role === "company" && userInfo.companyData?.companyName 
+                    ? userInfo.companyData.companyName 
+                    : userInfo.username || "Unknown User"
+                  }
                 </p>
                 <p className={`text-xs font-medium capitalize ${getUserRoleColor()}`}>
                   {userInfo.role || "user"}
-                  {userInfo.role === "company" && userInfo.companyData && (
-                    <span className="text-gray-500 normal-case">
-                      {" "}• {userInfo.companyData.companyId}
-                    </span>
-                  )}
                 </p>
               </div>
             </div>

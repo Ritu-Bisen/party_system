@@ -9,6 +9,7 @@ import {
 import toast from "react-hot-toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import supabase from "../../supabaseClient";
 
 // Button component
 const Button = ({ children, variant = "default", className = "", disabled = false, ...props }) => {
@@ -152,6 +153,7 @@ const StatsCard = ({ title, count, description, icon: Icon, color }) => (
 );
 
 // Table Columns Configuration
+// Table Columns Configuration - UPDATED TO MATCH YOUR SCREENSHOT
 const TABLE_COLUMNS = [
   { key: 'taskNo', label: 'Task No', index: 1 },
   { key: 'givenDate', label: 'Given Date', index: 2 },
@@ -165,11 +167,12 @@ const TABLE_COLUMNS = [
   { key: 'attachmentFile', label: 'Attachment File', index: 10 },
   { key: 'priorityInCustomer', label: 'Priority In Customer', index: 11 },
   { key: 'notes', label: 'Notes', index: 12 },
-  { key: 'expectedDateToClose', label: 'Expected Date To Close', index: 13 },
+  { key: 'expectedDateToClose', label: 'Expected Date To Close', index: 13 }
 ];
 
 const API_CONFIG = {
   FETCH_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS&action=fetch",
+  MASTER_SHEET_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master Sheet Link&action=fetch",
   UPDATE_URL: "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec"
 };
 
@@ -212,212 +215,249 @@ export default function DeveloperStagePage() {
   const [uniquePostedBy, setUniquePostedBy] = useState([]);
   const [teamMembers1, setTeamMembers1] = useState([]);
   const [teamMembers2, setTeamMembers2] = useState([]);
+  const [masterSheetMembers, setMasterSheetMembers] = useState([]);
+
+
+
+
+
+  // Fetch members from Master Sheet Link
+ const fetchMasterSheetMembers = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("dropdown")           // your table name
+      .select("member_name");     // column with member names
+
+    if (error) {
+      throw error;
+    }
+
+    if (Array.isArray(data)) {
+      // Remove empty values and duplicates
+      const members = data
+        .map(row => row.member_name)
+        .filter(member => member && member.trim() !== "");
+
+      const uniqueMembers = [...new Set(members)];
+      setMasterSheetMembers(uniqueMembers);
+      return uniqueMembers;
+    }
+
+    return [];
+  } catch (err) {
+    console.error("Error fetching members from Supabase:", err);
+    return [];
+  }
+};
 
   // Data transformation function
-  const transformSheetData = (rawData) => {
-    if (!rawData || !Array.isArray(rawData)) return { tasks: [], teamMembers1: [], teamMembers2: [] };
+const transformSheetData = (rawData, masterMembers = []) => {
+  if (!rawData || !Array.isArray(rawData)) {
+    return { tasks: [], teamMembers1: [], teamMembers2: [] };
+  }
 
-    if (rawData.length <= 6) {
-      console.log("Not enough data rows");
-      return { tasks: [], teamMembers1: [], teamMembers2: [] };
+  if (rawData.length === 0) {
+    console.log("No task data found");
+    return { tasks: [], teamMembers1: [], teamMembers2: [] };
+  }
+
+  const tasks = rawData.map((row, index) => {
+    if (!row) return null;
+
+    const plannedDate = row.planned1 || row.planned2;
+    const actualDate = row.actual1 || row.actual2;
+
+    let status = "pending";
+    if (plannedDate && actualDate) {
+      status = "completed";
+    } else if (plannedDate && !actualDate) {
+      status = "assigned";
     }
-
-    const dataRows = rawData.slice(6); // Skip first 6 rows
-
-    // Extract unique team members
-    const membersX = new Set();
-    const membersY = new Set();
-
-    dataRows.forEach(row => {
-      if (row[23]) membersX.add(row[23]);
-      if (row[24]) membersY.add(row[24]);
-    });
-
-    const teamMembers1 = Array.from(membersX).filter(Boolean);
-    const teamMembers2 = Array.from(membersY).filter(Boolean);
 
     return {
-      tasks: dataRows.map((row, index) => {
-        if (!Array.isArray(row)) return null;
+      id: index + 1,
+      rowNumber: index + 2,
+      taskNo: row.task_no || "",
+      givenDate: formatDateTime(row.given_date),
+      postedBy: row.posted_by || "",
+      typeOfWork: row.type_of_work || "",
+      takenFrom: row.taken_from || "",
+      partyName: row.party_name || "",
+      systemName: row.system_name || "",
+      descriptionOfWork: row.description_of_work || "",
+      linkOfSystem: row.link_of_system || "",
+      attachmentFile: row.attachment_file || "",
+      priorityInCustomer: row.priority_in_customer || "Medium",
+      notes: row.notes || "",
+      expectedDateToClose: formatDateTime(row.expected_date_to_close),
 
-        const task = {
-          id: index + 1,
-          rowNumber: index + 7,
-          taskNo: row[1] || '',
-          givenDate: formatDateTime(row[0]),
-          partyName: row[6] || '',
-          systemName: row[7] || '',
-          typeOfWork: row[4] || '',
-          descriptionOfWork: row[8] || '',
-          expectedDateToClose: formatDateTime(row[13]),
-          planned2: formatDateTime(row[20]),
-          actual2: formatDateTime(row[21]),
-          assignedMember1: row[23] || '',
-          assignedMember2: row[24] || '',
-          timeRequired: row[25] || '',
-          remarks: row[26] || '',
-          status: row[20] && !row[21] ? 'pending' : row[20] && row[21] ? 'completed' : 'pending',
-          priority: row[11] || 'Medium',
-          isReassigned: false,
-          originalAssignee: row[23] || ''
-        };
+      planned2: formatDateTime(row.planned2),
+      actual2: formatDateTime(row.actual2),
+      assignedMember1: row.employee_name_1 || "",
+      assignedMember2: row.employee_name_2 || "",
+      timeRequired: row.how_many_time_take || "",
+      remarks: row.remarks || "",
 
-        // Add all table columns data
-        TABLE_COLUMNS.forEach(column => {
-          if (column.index && row[column.index]) {
-            if (column.key === 'givenDate' || column.key === 'expectedDateToClose') {
-              task[column.key] = formatDateTime(row[column.index]);
-            } else {
-              task[column.key] = row[column.index];
-            }
-          } else {
-            task[column.key] = '';
-          }
-        });
-
-        return task;
-      }).filter(task => task !== null && task.taskNo),
-      teamMembers1,
-      teamMembers2
+      status: row.status || status,
+      priority: row.priority_in_customer || "Medium",
+      isReassigned: false,
+      originalAssignee: row.employee_name_1 || "",
     };
-  };
+  }).filter(task => task !== null && task.taskNo);
+
+  // ✅ Instead of membersX/membersY, use masterMembers for both
+  const teamMembers1 = masterMembers;
+  const teamMembers2 = masterMembers;
+
+  const sortedTasks = tasks.sort((a, b) => {
+    const aIsAssignedPending = a.planned2 && !a.actual2;
+    const bIsAssignedPending = b.planned2 && !b.actual2;
+
+    if (aIsAssignedPending && !bIsAssignedPending) return -1;
+    if (!aIsAssignedPending && bIsAssignedPending) return 1;
+    return b.id - a.id;
+  });
+
+  return { tasks: sortedTasks, teamMembers1, teamMembers2 };
+};
+
+
 
   // Fetch data from Google Sheets
-  const fetchTasksFromAPI = async () => {
-    setLoading(true);
-    setError(null);
+const fetchTasksFromAPI = async () => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      const timestamp = new Date().getTime();
-      const response = await fetch(`${API_CONFIG.FETCH_URL}&timestamp=${timestamp}`);
+  try {
+    const { data: tasksData, error: tasksError } = await supabase
+      .from("FMS")
+      .select("*");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    if (tasksError) throw tasksError;
 
-      const data = await response.json();
+    // ✅ Fetch full members list
+    const masterMembers = await fetchMasterSheetMembers();
 
-      if (data.success && Array.isArray(data.data)) {
-        const { tasks, teamMembers1, teamMembers2 } = transformSheetData(data.data);
-
-        setAllTasks(tasks);
-        setTeamMembers1(teamMembers1);
-        setTeamMembers2(teamMembers2);
-
-        // Filter data based on conditions
-        const pending = tasks.filter(item =>
-          item.planned2 && !item.actual2
-        );
-        const history = tasks.filter(item =>
-          item.planned2 && item.actual2
-        );
-
-        setPendingData(pending);
-        setHistoryData(history);
-        setUniquePostedBy([...new Set(tasks.map(item => item.postedBy).filter(Boolean))]);
-      } else {
-        throw new Error(data.message || "Failed to fetch data");
-      }
-    } catch (err) {
-      console.error("Error fetching tasks:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (!Array.isArray(tasksData)) {
+      throw new Error("Invalid tasks data from Supabase");
     }
-  };
+
+    console.log("Raw data from Supabase:", tasksData);
+
+    // ✅ Pass masterMembers into transform
+    const { tasks, teamMembers1, teamMembers2 } = transformSheetData(tasksData, masterMembers);
+
+    setAllTasks(tasks);
+    setTeamMembers1(teamMembers1);
+    setTeamMembers2(teamMembers2);
+
+    const pending = tasks.filter(item => item.planned2 && !item.actual2);
+    const history = tasks.filter(item => item.planned2 && item.actual2);
+
+    setPendingData(pending);
+    setHistoryData(history);
+
+    const postedByValues = [...new Set(tasks.map(item => item.postedBy).filter(Boolean))];
+    setUniquePostedBy(postedByValues);
+
+  } catch (err) {
+    console.error("Error fetching tasks:", err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+// Add this useEffect to debug your data flow
+useEffect(() => {
+  console.log("All tasks:", allTasks);
+  console.log("Pending data:", pendingData);
+  console.log("History data:", historyData);
+}, [allTasks, pendingData, historyData]);
+
 
   // Submit task assignment
-  const submitTaskAssignment = async () => {
-    if (selectedTasks.size === 0) {
-      toast.error("Please select at least one task to assign");
-      return;
-    }
+const submitTaskAssignment = async () => {
+  if (selectedTasks.size === 0) {
+    toast.error("Please select at least one task to assign");
+    return;
+  }
 
-    const incompleteTask = Array.from(selectedTasks).find(taskId => {
-      const form = assignmentForm[taskId];
-      return !form?.assignedMember1 ||
-        (form?.days === undefined && form?.hours === undefined) ||
-        !form?.remarks;
-    });
+  // Validation: check required fields
+  const incompleteTask = Array.from(selectedTasks).find(taskId => {
+    const form = assignmentForm[taskId];
+    return !form?.assignedMember1 ||
+      (form?.days === undefined && form?.hours === undefined) ||
+      !form?.remarks;
+  });
 
-    if (incompleteTask) {
-      toast.error("Please fill all fields (Member1, Days/Hours, Remarks) for selected tasks");
-      return;
-    }
+  if (incompleteTask) {
+    toast.error("Please fill all fields (Member1, Days/Hours, Remarks) for selected tasks");
+    return;
+  }
 
-    setSubmitting(true);
+  setSubmitting(true);
 
-    try {
-      let successCount = 0;
-      let errorCount = 0;
+  try {
+    let successCount = 0;
+    let errorCount = 0;
 
-      for (const taskId of selectedTasks) {
-        const task = displayedTasks.find(t => t.id === taskId);
-        const formData = assignmentForm[taskId];
+    for (const taskId of selectedTasks) {
+      const task = allTasks.find(t => t.id === taskId); // Find by id
+      const formData = assignmentForm[taskId];
 
-        const days = formData.days !== undefined ? parseInt(formData.days) : 0;
-        const hours = formData.hours !== undefined ? parseInt(formData.hours) : 0;
-        const totalHours = (days * 24) + hours;
+      const days = formData.days !== undefined ? parseInt(formData.days) : 0;
+      const hours = formData.hours !== undefined ? parseInt(formData.hours) : 0;
+      const totalHours = (days * 24) + hours;
 
-        const submissionDate = new Date().toISOString().split('T')[0];
-        const formDataToSend = new FormData();
+      // ✅ Supabase expects ISO string for date columns
+      const submissionDate = new Date().toISOString().split("T")[0];
 
-        formDataToSend.append('sheetName', 'FMS');
-        formDataToSend.append('action', 'update_task_assignment_staff');
-        formDataToSend.append('taskNo', task.taskNo);
-        formDataToSend.append('postedBy', task.postedBy);
-        formDataToSend.append('assignedMember1', formData.assignedMember1 || '');
-        formDataToSend.append('assignedMember2', formData.assignedMember2 || '');
-        formDataToSend.append('timeRequired1', totalHours.toString());
-        formDataToSend.append('remarks1', formData.remarks);
-        formDataToSend.append('submissionDate1', submissionDate);
+      try {
+        const { error } = await supabase
+          .from("FMS")
+          .update({
+            employee_name_1: formData.assignedMember1 || "",
+            employee_name_2: formData.assignedMember2 || "",
+            how_many_time_take_2: totalHours.toString(),
+            remarks_2: formData.remarks,
+            actual2: submissionDate, 
+            posted_by: task.postedBy || null
+          })
+          .eq("task_no", task.taskNo); // Use task_no for the database query
 
-        try {
-          const response = await fetch(API_CONFIG.UPDATE_URL, {
-            method: 'POST',
-            body: formDataToSend
-          });
-
-          if (!response.ok) {
-            const errorData = await response.text();
-            throw new Error(`Failed to update task: ${errorData}`);
-          }
-
-          const responseText = await response.text();
-          let result;
-          try {
-            result = JSON.parse(responseText);
-          } catch (parseError) {
-            result = { success: true };
-          }
-
-          if (result.success !== false) {
-            successCount++;
-          } else {
-            errorCount++;
-          }
-        } catch (taskError) {
+        if (error) {
+          console.error(`Error updating task ${task.taskNo}:`, error.message);
           errorCount++;
+        } else {
+          successCount++;
         }
+      } catch (taskError) {
+        console.error(`Exception updating task ${task.taskNo}:`, taskError);
+        errorCount++;
       }
-
-      if (successCount > 0) {
-        toast.success(`Successfully assigned ${successCount} task(s)!`);
-        setSelectedTasks(new Set());
-        setAssignmentForm({});
-        fetchTasksFromAPI();
-      }
-
-      if (errorCount > 0) {
-        toast.error(`${errorCount} task(s) failed to update.`);
-      }
-    } catch (err) {
-      console.error("Error submitting assignments:", err);
-      toast.error("Error submitting assignments: " + err.message);
-    } finally {
-      setSubmitting(false);
     }
-  };
+
+    // ✅ Show results
+    if (successCount > 0) {
+      toast.success(`Successfully assigned ${successCount} task(s)!`);
+      setSelectedTasks(new Set());
+      setAssignmentForm({});
+      fetchTasksFromAPI(); // refresh list
+    }
+
+    if (errorCount > 0) {
+      toast.error(`${errorCount} task(s) failed to update.`);
+    }
+  } catch (err) {
+    console.error("Error submitting assignments:", err);
+    toast.error("Error submitting assignments: " + err.message);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   // Handle task completion with date+time
   const handleTaskCompletion = async (taskId) => {
@@ -691,83 +731,83 @@ export default function DeveloperStagePage() {
                     {displayedTasks.map((task) => (
                       <tr key={task.id} className="hover:bg-gray-50">
                         {/* Checkbox - Only for pending tab */}
-                        {activeTab === "pending" && (
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedTasks.has(task.id)}
-                              onChange={(e) => handleCheckboxChange(task.id, e.target.checked)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                          </td>
-                        )}
+                       {activeTab === "pending" && (
+      <td className="px-4 py-3">
+        <input
+          type="checkbox"
+          checked={selectedTasks.has(task.id)} // Use task.id here
+          onChange={(e) => handleCheckboxChange(task.id, e.target.checked)} // Use task.id here
+          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+      </td>
+    )}
 
-                        {activeTab === "pending" && (
-                          <>
-                            <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="select"
-                                  value={assignmentForm[task.id]?.assignedMember1 || ''}
-                                  onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember1', value)}
-                                  options={teamMembers1}
-                                />
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="select"
-                                  value={assignmentForm[task.id]?.assignedMember2 || ''}
-                                  onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember2', value)}
-                                  options={teamMembers2}
-                                />
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <div className="flex gap-2">
-                                  <select
-                                    className="w-20 px-2 py-2 text-sm border rounded-md"
-                                    value={assignmentForm[task.id]?.days ?? ''}
-                                    onChange={(e) => handleAssignmentFormChange(task.id, 'days', e.target.value)}
-                                  >
-                                    <option value="">Days</option>
-                                    {Array.from({ length: 31 }, (_, i) => (
-                                      <option key={i} value={i}>{i}d</option>
-                                    ))}
-                                  </select>
+                      {activeTab === "pending" && (
+      <>
+        <td className="px-4 py-3">
+          {selectedTasks.has(task.id) ? ( // Use task.id here
+            <AssignmentInput
+              type="select"
+              value={assignmentForm[task.id]?.assignedMember1 || ''} // Use task.id here
+              onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember1', value)} // Use task.id here
+              options={teamMembers1}
+            />
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {selectedTasks.has(task.id) ? ( // Use task.id here
+            <AssignmentInput
+              type="select"
+              value={assignmentForm[task.id]?.assignedMember2 || ''} // Use task.id here
+              onChange={(value) => handleAssignmentFormChange(task.id, 'assignedMember2', value)} // Use task.id here
+              options={teamMembers2}
+            />
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {selectedTasks.has(task.id) ? ( // Use task.id here
+            <div className="flex gap-2">
+              <select
+                className="w-20 px-2 py-2 text-sm border rounded-md"
+                value={assignmentForm[task.id]?.days ?? ''} // Use task.id here
+                onChange={(e) => handleAssignmentFormChange(task.id, 'days', e.target.value)} // Use task.id here
+              >
+                <option value="">Days</option>
+                {Array.from({ length: 31 }, (_, i) => (
+                  <option key={i} value={i}>{i}d</option>
+                ))}
+              </select>
 
-                                  <select
-                                    className="w-20 px-2 py-2 text-sm border rounded-md"
-                                    value={assignmentForm[task.id]?.hours ?? ''}
-                                    onChange={(e) => handleAssignmentFormChange(task.id, 'hours', e.target.value)}
-                                  >
-                                    <option value="">Hours</option>
-                                    {Array.from({ length: 24 }, (_, i) => (
-                                      <option key={i} value={i}>{i}h</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {selectedTasks.has(task.id) ? (
-                                <AssignmentInput
-                                  type="text"
-                                  value={assignmentForm[task.id]?.remarks || ''}
-                                  onChange={(value) => handleAssignmentFormChange(task.id, 'remarks', value)}
-                                  placeholder="Add remarks"
-                                />
-                              ) : (
-                                <span className="text-sm text-gray-400">-</span>
-                              )}
+              <select
+                className="w-20 px-2 py-2 text-sm border rounded-md"
+                value={assignmentForm[task.id]?.hours ?? ''} // Use task.id here
+                onChange={(e) => handleAssignmentFormChange(task.id, 'hours', e.target.value)} // Use task.id here
+              >
+                <option value="">Hours</option>
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i} value={i}>{i}h</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {selectedTasks.has(task.id) ? ( // Use task.id here
+            <AssignmentInput
+              type="text"
+              value={assignmentForm[task.id]?.remarks || ''} // Use task.id here
+              onChange={(value) => handleAssignmentFormChange(task.id, 'remarks', value)} // Use task.id here
+              placeholder="Add remarks"
+            />
+          )  :(
+            <span className="text-sm text-gray-400">-</span>
+          )}
                             </td>
                           </>
                         )}

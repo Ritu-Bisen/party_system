@@ -16,75 +16,45 @@ import {
   Area,
 } from "recharts"
 import { TrendingUp, Users, Clock, CheckCircle } from "lucide-react"
+import supabase from "../../supabaseClient"
 
-// Function to fetch data from Google Sheets
+// Function to fetch data from Supabase (FMS table)
 const fetchSheetData = async () => {
   try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=FMS')
+    // Select all columns from FMS table
+    const { data, error } = await supabase
+      .from("FMS")
+      .select("*")
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    if (error) {
+      throw error
     }
 
-    const data = await response.json()
-    
-    // Handle different response formats
-    if (data && typeof data === 'object') {
-      if (data.data && Array.isArray(data.data)) {
-        return data.data
-      }
-      if (data.FMS && Array.isArray(data.FMS)) {
-        return data.FMS
-      }
-      if (Array.isArray(data)) {
-        return data
-      }
-      if (data.values && Array.isArray(data.values)) {
-        return data.values
-      }
+    // Ensure we always return an array
+    if (Array.isArray(data)) {
+      return data
     }
-    
-    return data
+
+    return []
   } catch (error) {
-    console.error('Error fetching sheet data:', error)
+    console.error("Error fetching Supabase data:", error)
     return null
   }
 }
 
-// Function to fetch Master Sheet Link data for company matching
+// Fetch data from Master_Sheet_Link table in Supabase
 const fetchMasterSheetLinkData = async () => {
   try {
-    const payload = new URLSearchParams()
-    payload.append("action", "getMasterSheetData")
-    payload.append("sheet", "Master Sheet Link")
+    const { data, error } = await supabase
+      .from("dropdown")
+      .select("*")
 
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
-      }
-    )
+    if (error) throw error
 
-    const data = await response.json()
-    return data.success ? data.data : null
+    return Array.isArray(data) ? data : []
   } catch (error) {
-    // Fallback: try GET method with sheet parameter
-    try {
-      const timestamp = new Date().getTime()
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbzG8CyTBV-lk2wQ0PKjhrGUnBKdRBY-tkFVz-6GzGcbXqdEGYF0pWyfCl0BvGfVhi0/exec?sheet=Master Sheet Link&timestamp=${timestamp}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return data.success ? data.data : null
-    } catch (fallbackError) {
-      console.error("Error fetching Master Sheet Link data:", fallbackError)
-      return null
-    }
+    console.error("Error fetching Master Sheet Link data:", error)
+    return []
   }
 }
 
@@ -95,28 +65,32 @@ const getCompanyPartyNames = (companyName, masterSheetData) => {
   }
 
   const matchingParties = []
-  
-  // Skip header row (start from index 1)
-  for (let i = 1; i < masterSheetData.length; i++) {
-    const row = masterSheetData[i]
-    if (!row || !Array.isArray(row)) continue
 
-    const companyNameInSheet = row[2] ? row[2].toString().trim() : ''
-    
+  for (const row of masterSheetData) {
+    if (!row || typeof row !== "object") continue
+
+    // Assuming Supabase table has column names like company_name, col_g, col_h, col_i
+    const companyNameInSheet = row.company_name ? row.company_name.toString().trim() : ""
+
     if (companyNameInSheet.toLowerCase() === companyName.toLowerCase()) {
-      // Check multiple columns for potential party names
-      const possiblePartyColumns = [2, 6, 7, 8] // Column C, G, H, I
-      
-      for (const colIndex of possiblePartyColumns) {
-        if (row[colIndex]) {
-          const partyName = row[colIndex].toString().trim()
+      // Collect possible party names
+      const possiblePartyColumns = [
+        row.company_name,
+        row.col_g,
+        row.col_h,
+        row.col_i,
+      ]
+
+      for (const col of possiblePartyColumns) {
+        if (col) {
+          const partyName = col.toString().trim()
           if (partyName && !matchingParties.includes(partyName)) {
             matchingParties.push(partyName)
           }
         }
       }
-      
-      // If no specific party mapping found, use company name as party name
+
+      // If no mapping found, fallback to company name
       if (matchingParties.length === 0) {
         matchingParties.push(companyNameInSheet)
       }
@@ -132,14 +106,11 @@ const filterCompanyData = (dataRows, companyData, masterSheetData) => {
     return dataRows
   }
 
-  const columnGIndex = 6  // Party Name (Column G)
   const matchingPartyNames = getCompanyPartyNames(companyData.companyName, masterSheetData)
 
   if (matchingPartyNames.length > 0) {
     return dataRows.filter(row => {
-      if (!row || row.length <= columnGIndex) return false
-      
-      const partyName = row[columnGIndex] ? row[columnGIndex].toString().trim() : ''
+      const partyName = row.party_name ? row.party_name.toString().trim() : ''
       
       // Check if party name matches any of the company's party names
       return matchingPartyNames.some(companyParty => 
@@ -149,9 +120,7 @@ const filterCompanyData = (dataRows, companyData, masterSheetData) => {
   } else {
     // Fallback: direct company name matching
     return dataRows.filter(row => {
-      if (!row || row.length <= columnGIndex) return false
-
-      const partyName = row[columnGIndex] ? row[columnGIndex].toString().trim().toLowerCase() : ''
+      const partyName = row.party_name ? row.party_name.toString().trim().toLowerCase() : ''
       const companyNameLower = companyData.companyName.toLowerCase()
 
       return partyName === companyNameLower
@@ -159,39 +128,22 @@ const filterCompanyData = (dataRows, companyData, masterSheetData) => {
   }
 }
 
-// Function to filter data for user role
-// Function to filter data for user role
+// Function to filter data for user role - filter by employee_name_1 column
 const filterUserData = (dataRows, userFilterData) => {
   if (!userFilterData) return dataRows
 
   const userName = userFilterData.username || userFilterData.name
   if (!userName) return dataRows
 
-  const columnXIndex = 23 // Column X
-  const columnYIndex = 24 // Column Y (agar Y bhi user ke liye relevant hai)
-
-  let filtered = dataRows.filter(row => {
-    if (!row || row.length <= columnXIndex) return false
-    const columnXValue = row[columnXIndex]?.toString().trim() || ''
-    return columnXValue.toLowerCase() === userName.toLowerCase()
+  return dataRows.filter(row => {
+    const employeeName = row.employee_name_1?.toString().trim() || ''
+    return employeeName.toLowerCase() === userName.toLowerCase()
   })
-
-  // Agar Column X me data nahi mila, to Column Y try karo
-  if (filtered.length === 0) {
-    filtered = dataRows.filter(row => {
-      if (!row || row.length <= columnYIndex) return false
-      const columnYValue = row[columnYIndex]?.toString().trim() || ''
-      return columnYValue.toLowerCase() === userName.toLowerCase()
-    })
-  }
-
-  return filtered
 }
 
-
-// Function to process sheet data for charts with company and user filtering
-const processSheetData = (sheetData, userRole, companyData, masterSheetData, userFilterData) => {
-  if (!sheetData || !Array.isArray(sheetData)) {
+// Function to process Supabase data for charts with company and user filtering
+const processSupabaseData = (supabaseData, userRole, companyData, masterSheetData, userFilterData) => {
+  if (!supabaseData || !Array.isArray(supabaseData)) {
     return {
       taskCompletionData: [],
       projectStatusData: [],
@@ -202,30 +154,7 @@ const processSheetData = (sheetData, userRole, companyData, masterSheetData, use
     }
   }
 
-  // Find header row
-  let headerRowIndex = -1
-  for (let i = 0; i < Math.min(10, sheetData.length); i++) {
-    const row = sheetData[i]
-    if (Array.isArray(row)) {
-      for (let j = 0; j < row.length; j++) {
-        const cell = row[j]
-        if (cell && typeof cell === 'string' && 
-            (cell.toLowerCase().includes('task no') || cell.toLowerCase() === 'task no.')) {
-          headerRowIndex = i
-          break
-        }
-      }
-      if (headerRowIndex !== -1) break
-    }
-  }
-
-  // Default to row 5 if header not found
-  if (headerRowIndex === -1) {
-    headerRowIndex = 5
-  }
-
-  const dataStartRow = Math.max(headerRowIndex + 1, 6)
-  let dataRows = sheetData.slice(dataStartRow)
+  let dataRows = [...supabaseData]
 
   // Filter data based on user role
   if (userRole === 'company') {
@@ -234,18 +163,12 @@ const processSheetData = (sheetData, userRole, companyData, masterSheetData, use
     dataRows = filterUserData(dataRows, userFilterData)
   }
 
-  // Column indexes: AB = 27, AC = 28, AF = 31 (Team Name), G = 6 (Party Name)
-  const columnABIndex = 27
-  const columnACIndex = 28
-  const columnAFIndex = 31
-  const columnGIndex = 6
-
   // Process data to get totals and team performance
   const teamMap = new Map()
   const monthlyData = {}
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   
-  // Initialize monthly data
+  // Initialize monthly data with all months
   monthNames.forEach((month, index) => {
     monthlyData[index] = {
       month,
@@ -260,42 +183,46 @@ const processSheetData = (sheetData, userRole, companyData, masterSheetData, use
   let totalTasks = 0
 
   dataRows.forEach(row => {
-    if (!row || row.length <= columnABIndex) return
+    // Check if planned3 (AB column equivalent) has data
+    const plannedHasData = row.planned3 && row.planned3.toString().trim() !== ''
+    const actualHasData = row.actual3 && row.actual3.toString().trim() !== ''
 
-    const abHasData = row[columnABIndex] && row[columnABIndex].toString().trim() !== ''
-    const acHasData = row.length > columnACIndex && row[columnACIndex] && row[columnACIndex].toString().trim() !== ''
+    if (!plannedHasData && !actualHasData) return // Skip if no data
 
-    if (!abHasData) return // Skip if no AB data
-
-    // Get date (assuming first column is date)
+    // Get date from timestamp or created_at
     let date = new Date()
-    if (row[0]) {
+    if (row.timestamp) {
       try {
-        date = new Date(row[0])
+        date = new Date(row.timestamp)
       } catch (e) {
-        date = new Date()
+        // If timestamp parsing fails, try created_at
+        if (row.created_at) {
+          try {
+            date = new Date(row.created_at)
+          } catch (e) {
+            date = new Date()
+          }
+        }
       }
     }
 
     const month = date.getMonth()
-    const year = date.getFullYear()
-    const currentYear = new Date().getFullYear()
 
     // Count totals
     totalTasks++
     monthlyData[month].total++
 
-    if (abHasData && acHasData) {
+    if (plannedHasData && actualHasData) {
       totalCompleted++
       monthlyData[month].completed++
-    } else if (abHasData) {
+    } else if (plannedHasData) {
       totalPending++
       monthlyData[month].pending++
     }
 
     // Process team data (only for admin)
     if (userRole === 'admin') {
-      const teamName = row.length > columnAFIndex ? (row[columnAFIndex] || '').toString().trim() : 'No Team'
+      const teamName = row.team_name ? row.team_name.toString().trim() : 'No Team'
       
       if (!teamMap.has(teamName)) {
         teamMap.set(teamName, {
@@ -309,7 +236,7 @@ const processSheetData = (sheetData, userRole, companyData, masterSheetData, use
       const team = teamMap.get(teamName)
       team.tasks++
 
-      if (abHasData && acHasData) {
+      if (plannedHasData && actualHasData) {
         team.completed++
       }
     }
@@ -358,9 +285,8 @@ const processSheetData = (sheetData, userRole, companyData, masterSheetData, use
     teamPerformanceData = finalTeamData
   }
 
-  // Prepare task completion data (filter out months with no data)
+  // Prepare task completion data - include all months even with no data
   const taskCompletionData = Object.values(monthlyData)
-    .filter(month => month.total > 0)
     .sort((a, b) => monthNames.indexOf(a.month) - monthNames.indexOf(b.month))
 
   // Prepare project status data
@@ -392,7 +318,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
   const [loading, setLoading] = useState(true)
   const [masterSheetData, setMasterSheetData] = useState(null)
 
-  // Fetch and process data on component mount
+  // Fetch data for all roles
   useEffect(() => {
     const loadChartData = async () => {
       setLoading(true)
@@ -408,7 +334,7 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
         // Fetch FMS data
         const data = await fetchSheetData()
         if (data) {
-          const processedData = processSheetData(data, userRole, companyData, masterData, userFilterData)
+          const processedData = processSupabaseData(data, userRole, companyData, masterData, userFilterData)
           setChartData(processedData)
         }
       } catch (error) {
@@ -423,57 +349,43 @@ export default function DashboardCharts({ userRole, companyData, userFilterData 
 
   const chartTabs = [
     { id: "completion", label: "Task Completion", icon: CheckCircle },
-    { id: "performance", label: "Team Performance", icon: Users },
     { id: "status", label: "Project Status", icon: TrendingUp },
   ]
 
   // Filter tabs based on user role
   const filteredTabs = userRole === 'admin' 
-    ? chartTabs 
-    : chartTabs.filter(tab => tab.id !== "performance") // Hide Team Performance for non-admin
+    ? [...chartTabs]
+    : chartTabs
 
-const renderChart = (chartId = activeChart) => {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <span className="ml-3 text-gray-600">Loading chart data...</span>
-      </div>
-    )
-  }
+  const renderChart = (chartId = activeChart) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+          <span className="ml-3 text-gray-600">Loading chart data...</span>
+        </div>
+      )
+    }
 
-    switch (activeChart,chartId) {
+    switch (chartId) {
       case "completion":
         return (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData.taskCompletionData}>
-              <defs>
-                <linearGradient id="completedGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="month" stroke="#6B7280" />
-              <YAxis stroke="#6B7280" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #E5E7EB",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                }}
+              <XAxis 
+                dataKey="month" 
+                stroke="#6B7280" 
+                ticks={['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']}
               />
+              <YAxis stroke="#6B7280" />
+              <Tooltip />
               <Area
                 type="monotone"
                 dataKey="completed"
                 stackId="1"
                 stroke="#10B981"
-                fill="url(#completedGradient)"
+                fill="#10B98133"
                 strokeWidth={2}
                 name="Completed"
               />
@@ -482,7 +394,7 @@ const renderChart = (chartId = activeChart) => {
                 dataKey="pending"
                 stackId="1"
                 stroke="#F59E0B"
-                fill="url(#pendingGradient)"
+                fill="#F59E0B33"
                 strokeWidth={2}
                 name="Pending"
               />
@@ -568,204 +480,165 @@ const renderChart = (chartId = activeChart) => {
   }
 
   return (
-   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  {/* Company Users: Only Two Charts Side by Side */}
-{userRole === "company" ? (
-  <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
-    {/* Left: Task Completion Chart */}
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Task Completion</h2>
-      {renderChart("completion")}
-    </div>
-
-    {/* Right: Project Status Chart */}
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Status</h2>
-      {renderChart("status")}
-    </div>
-  </div>
-) : (
-    <>
-      {/* Admin + User Original Layout */}
-      {/* Main Chart */}
-      <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {userRole === 'admin' ? 'Analytics Dashboard' : 'My Performance'}
-            </h2>
-            <div className="flex items-center space-x-2">
-              {filteredTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveChart(tab.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeChart === tab.id
-                      ? "bg-blue-100 text-blue-700"
-                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="p-6">{renderChart()}</div>
-      </div>
-
-      {/* Stats + Insights Section */}
-      <div className="space-y-6">
-        {/* Quick Stats */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-600" />
-                </div>
-                <span className="text-sm text-gray-600">Total Tasks</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900">
-                {loading ? "..." : chartData.totalTasks}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                </div>
-                <span className="text-sm text-gray-600">Tasks Completed</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900">
-                {loading ? "..." : chartData.totalCompleted}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-orange-600" />
-                </div>
-                <span className="text-sm text-gray-600">Pending Tasks</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900">
-                {loading ? "..." : chartData.totalPending}
-              </span>
-            </div>
-            {userRole === 'admin' && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <span className="text-sm text-gray-600">Efficiency</span>
-                </div>
-                <span className="text-lg font-semibold text-gray-900">
-                  {loading ? "..." : chartData.totalTasks > 0
-                    ? Math.round((chartData.totalCompleted / chartData.totalTasks) * 100) + "%"
-                    : "0%"}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Project Status Legend */}
-        {activeChart === "status" && !loading && (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Company Users: Only Two Charts Side by Side */}
+      {userRole === "company" ? (
+        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Task Completion Chart */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Status</h3>
-            <div className="space-y-3">
-              {chartData.projectStatusData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Task Completion</h2>
+            {renderChart("completion")}
+          </div>
+
+          {/* Right: Project Status Chart */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Project Status</h2>
+            {renderChart("status")}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Admin + User Original Layout */}
+          {/* Main Chart */}
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {userRole === 'admin' ? 'Analytics Dashboard' : 'My Performance'}
+                </h2>
+                <div className="flex items-center space-x-2">
+                  {filteredTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveChart(tab.id)}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeChart === tab.id
+                          ? "bg-blue-100 text-blue-700"
+                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                      }`}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-6">{renderChart()}</div>
+          </div>
+
+          {/* Stats + Insights Section */}
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                    <span className="text-sm text-gray-600">{item.name}</span>
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="text-sm text-gray-600">Total Tasks</span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{item.value}</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {loading ? "..." : chartData.totalTasks}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Team Performance Details (Admin only) */}
-        {activeChart === "performance" && userRole === 'admin' && !loading && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance Details</h3>
-            <div className="space-y-3">
-              {chartData.teamPerformanceData.map((team, index) => (
-                <div key={index} className="border border-gray-100 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">{team.name}</span>
-                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                      {team.efficiency}% Efficiency
-                    </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    </div>
+                    <span className="text-sm text-gray-600">Tasks Completed</span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-600 mb-2">
-                    <span>{team.tasks} Tasks</span>
-                    <span>{team.completed || 0} Completed</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${team.efficiency}%` }}
-                    ></div>
-                  </div>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {loading ? "..." : chartData.totalCompleted}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Performance Insights */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Insights</h3>
-          <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <TrendingUp className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">Tasks Status</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <span className="text-sm text-gray-600">Pending Tasks</span>
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {loading ? "..." : chartData.totalPending}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-green-700">
-                {loading ? "Loading..." : `${chartData.totalCompleted} completed, ${chartData.totalPending} pending`}
-              </p>
             </div>
-            {userRole === 'admin' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">Team Performance</span>
+
+            {/* Project Status Legend */}
+            {activeChart === "status" && !loading && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Status</h3>
+                <div className="space-y-3">
+                  {chartData.projectStatusData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        ></div>
+                        <span className="text-sm text-gray-600">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">{item.value}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-blue-700">
-                  {loading ? "Loading..." :
-                    `Average efficiency: ${chartData.teamPerformanceData.length > 0
-                      ? Math.round(chartData.teamPerformanceData.reduce((sum, team) => sum + team.efficiency, 0) / chartData.teamPerformanceData.length)
-                      : 0}%`}
-                </p>
               </div>
             )}
-            {userRole === 'admin' && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Clock className="w-4 h-4 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-800">Overall Efficiency</span>
-                </div>
-                <p className="text-xs text-orange-700">
-                  {loading ? "Loading..." :
-                    `${chartData.totalTasks > 0
-                      ? Math.round((chartData.totalCompleted / chartData.totalTasks) * 100)
-                      : 0}% of all tasks completed`}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  )}
-</div>
 
+            {/* Team Performance Details (Admin only) */}
+            {/* {activeChart === "performance" && userRole === 'admin' && !loading && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance Details</h3>
+                <div className="space-y-3">
+                  {chartData.teamPerformanceData.map((team, index) => (
+                    <div key={index} className="border border-gray-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-900">{team.name}</span>
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                          {team.efficiency}% Efficiency
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-2">
+                        <span>{team.tasks} Tasks</span>
+                        <span>{team.completed || 0} Completed</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${team.efficiency}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )} */}
+
+            {/* Performance Insights */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Insights</h3>
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">Tasks Status</span>
+                  </div>
+                  <p className="text-xs text-green-700">
+                    {loading ? "Loading..." : 
+                      `${chartData.totalCompleted} completed, 
+                       ${chartData.totalPending} pending`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
