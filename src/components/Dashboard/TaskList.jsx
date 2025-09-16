@@ -91,9 +91,13 @@ const getCompanyPartyNames = (companyName, masterSheetData) => {
 
 
 export default function TaskList({ type = "all", userFilterData = null, companyData = null }) {
+   const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
   const [filterPriority, setFilterPriority] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterParty, setFilterParty] = useState("all")
@@ -487,58 +491,150 @@ const transformSupabaseData = (rawData) => {
 };
 
 // Replace the fetchTasks function with this corrected version
-const fetchTasks = async () => {
-  setLoading(true)
-  setError(null)
+const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
+  if (isLoadMore) {
+    setIsLoadingMore(true);
+  } else {
+    setLoading(true);
+  }
+  
+  setError(null);
 
   try {
     // STEP 1: Load Master Sheet data FIRST if company user
-    let currentMasterData = masterSheetData
+    let currentMasterData = masterSheetData;
     if (isCompanyUser && !currentMasterData) {
-      currentMasterData = await loadMasterSheetData()
+      currentMasterData = await loadMasterSheetData();
       if (!currentMasterData) {
-        throw new Error("Failed to load company mapping data")
+        throw new Error("Failed to load company mapping data");
       }
     }
 
-    // STEP 2: Fetch FMS tasks from Supabase
-    const { data: tasksData, error: tasksError } = await supabase
+    // STEP 2: Fetch FMS tasks from Supabase with pagination
+    let query = supabase
       .from("FMS")
-      .select("*")
+      .select("*", { count: 'exact' })
+      .order('task_no', { ascending: false })
+      .range((pageNum - 1) * 50, pageNum * 50 - 1);
 
-    if (tasksError) throw tasksError
-    if (!Array.isArray(tasksData)) {
-      throw new Error("Invalid tasks data from Supabase")
+    // Add search filter if provided
+    if (search) {
+      query = query.or(`task_no.ilike.%${search}%,party_name.ilike.%${search}%,system_name.ilike.%${search}%,description_of_work.ilike.%${search}%`);
     }
 
-    console.log("Raw data from Supabase:", tasksData)
+    const { data: tasksData, error: tasksError, count } = await query;
+
+    if (tasksError) throw tasksError;
+    if (!Array.isArray(tasksData)) {
+      throw new Error("Invalid tasks data from Supabase");
+    }
+
+    console.log("Raw data from Supabase:", tasksData);
 
     // STEP 3: Transform data using the new function
-    const { tasks: transformedTasks, teamMembers1: tm1, teamMembers2: tm2 } = transformSupabaseData(tasksData)
-    setAllTasks(transformedTasks)
-    setTeamMembers1(tm1) // Now this will work
-    setTeamMembers2(tm2) // Now this will work
+    const { tasks: transformedTasks, teamMembers1: tm1, teamMembers2: tm2 } = transformSupabaseData(tasksData);
+    
+    if (isLoadMore) {
+      // Append to existing tasks
+      setAllTasks(prev => [...prev, ...transformedTasks]);
+    } else {
+      // Replace existing tasks
+      setAllTasks(transformedTasks);
+    }
+    
+    setTeamMembers1(tm1);
+    setTeamMembers2(tm2);
 
     // STEP 4: Filter data for pending and completed
     const pending = transformedTasks.filter(item => item.planned3 && !item.actual3);
     const history = transformedTasks.filter(item => item.planned3 && item.actual3);
 
-    setPendingData(pending)
-    setHistoryData(history)
+    if (isLoadMore) {
+      setPendingData(prev => [...prev, ...pending]);
+      setHistoryData(prev => [...prev, ...history]);
+    } else {
+      setPendingData(pending);
+      setHistoryData(history);
+    }
+
+    // Check if there are more pages
+    setHasMore(transformedTasks.length === 50);
+    setPage(pageNum);
 
     // Collect unique parties
-    setUniqueParties([
-      ...new Set(transformedTasks.map(item => item.partyName).filter(Boolean)),
-    ])
+    if (!isLoadMore) {
+      setUniqueParties([
+        ...new Set(transformedTasks.map(item => item.partyName).filter(Boolean)),
+      ]);
+    }
 
-    console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}`)
+    console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}, Has more: ${transformedTasks.length === 50}`);
   } catch (err) {
-    console.error("Error fetching tasks:", err)
-    setError(err.message)
+    console.error("Error fetching tasks:", err);
+    setError(err.message);
   } finally {
-    setLoading(false)
+    setLoading(false);
+    setIsLoadingMore(false);
+    setIsSearching(false);
   }
-}
+};
+
+
+const handleSearch = (query) => {
+  setSearchTerm(query);
+  setIsSearching(true);
+  setPage(1);
+  setHasMore(true);
+  fetchTasks(1, query);
+};
+
+// Add this useEffect for infinite scroll
+useEffect(() => {
+  if (!hasMore || loading || isLoadingMore) return;
+  
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) {
+        fetchTasks(page + 1, searchTerm, true);
+      }
+    },
+    { threshold: 1.0 }
+  );
+  
+  // Observe the loading indicator or last element
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (sentinel) {
+    observer.observe(sentinel);
+  }
+  
+  return () => {
+    if (sentinel) {
+      observer.unobserve(sentinel);
+    }
+  };
+}, [page, hasMore, loading, isLoadingMore, searchTerm]);
+
+
+const SearchBar = ({ value, onChange, onSearch, loading }) => (
+  <div className="relative mb-4">
+    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <Search className="h-5 w-5 text-gray-400" />
+    </div>
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyPress={(e) => e.key === 'Enter' && onSearch()}
+      placeholder="Search by task no, party, system, or description..."
+      className="block w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    />
+    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+      {loading && (
+        <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+      )}
+    </div>
+  </div>
+);
 
 
   // FIXED: useEffect to properly handle dependencies
@@ -954,6 +1050,14 @@ const getFilteredTasks = () => {
     }
   }
 
+  // In your refresh button handler
+const handleRefresh = () => {
+  setSearchTerm("");
+  setPage(1);
+  setHasMore(true);
+  fetchTasks(1);
+};
+
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "High":
@@ -1008,25 +1112,21 @@ const getFilteredTasks = () => {
       {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+          <SearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          onSearch={() => handleSearch(searchTerm)}
+          loading={isSearching}
+        />
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            onClick={fetchTasks}
-            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 whitespace-nowrap"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
+         <button
+  onClick={handleRefresh} // Changed from fetchTasks to handleRefresh
+  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 whitespace-nowrap"
+>
+  <RefreshCw className="w-4 h-4" />
+  <span className="hidden sm:inline">Refresh</span>
+</button>
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
@@ -1105,8 +1205,8 @@ const getFilteredTasks = () => {
       )}
 
       {/* Tasks Table with Fixed Header and Scrollable Body */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="max-h-[70vh] overflow-auto">
+       <div className="bg-white rounded-lg border border-gray-200">
+      <div className="max-h-[70vh] overflow-auto">
           {/* Desktop Table View */}
           <div className="hidden lg:block">
             <table className="w-full">
@@ -1312,6 +1412,11 @@ const getFilteredTasks = () => {
                 ))}
               </tbody>
             </table>
+             {hasMore && (
+          <div id="scroll-sentinel" className="py-4 flex justify-center">
+            <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+          </div>
+        )}
           </div>
 
           {/* Mobile Card View */}
@@ -1462,12 +1567,12 @@ const getFilteredTasks = () => {
                   : 'No tasks assigned to you match the criteria.'
               }
             </p>
-            <Button
-              onClick={fetchTasks}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Refresh Data
-            </Button>
+          <Button
+  onClick={handleRefresh} // Changed from fetchTasks to handleRefresh
+  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+>
+  Refresh Data
+</Button>
           </div>
         )}
       </div>
