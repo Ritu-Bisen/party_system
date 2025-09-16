@@ -491,6 +491,7 @@ const transformSupabaseData = (rawData) => {
 };
 
 // Replace the fetchTasks function with this corrected version
+// Replace the fetchTasks function with this corrected version
 const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
   if (isLoadMore) {
     setIsLoadingMore(true);
@@ -513,7 +514,7 @@ const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
     // STEP 2: Fetch FMS tasks from Supabase with pagination
     let query = supabase
       .from("FMS")
-      .select("*", { count: 'exact' })
+      .select("*", { count: 'exact' }) // This returns the count
       .order('task_no', { ascending: false })
       .range((pageNum - 1) * 50, pageNum * 50 - 1);
 
@@ -529,7 +530,7 @@ const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
       throw new Error("Invalid tasks data from Supabase");
     }
 
-    console.log("Raw data from Supabase:", tasksData);
+    console.log("Raw data from Supabase:", tasksData, "Total count:", count);
 
     // STEP 3: Transform data using the new function
     const { tasks: transformedTasks, teamMembers1: tm1, teamMembers2: tm2 } = transformSupabaseData(tasksData);
@@ -557,8 +558,10 @@ const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
       setHistoryData(history);
     }
 
-    // Check if there are more pages
-    setHasMore(transformedTasks.length === 50);
+    // FIXED: Use the actual count to determine if there are more pages
+    const totalFetchedSoFar = pageNum * 50;
+    setHasMore(totalFetchedSoFar < count);
+    
     setPage(pageNum);
 
     // Collect unique parties
@@ -568,7 +571,7 @@ const fetchTasks = async (pageNum = 1, search = "", isLoadMore = false) => {
       ]);
     }
 
-    console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}, Has more: ${transformedTasks.length === 50}`);
+    console.log(`Final data set - Pending: ${pending.length}, Completed: ${history.length}, Has more: ${totalFetchedSoFar < count}`);
   } catch (err) {
     console.error("Error fetching tasks:", err);
     setError(err.message);
@@ -589,21 +592,22 @@ const handleSearch = (query) => {
 };
 
 // Add this useEffect for infinite scroll
+// Add this useEffect for infinite scroll - UPDATED
 useEffect(() => {
   if (!hasMore || loading || isLoadingMore) return;
   
   const observer = new IntersectionObserver(
     (entries) => {
-      if (entries[0].isIntersecting) {
+      if (entries[0].isIntersecting && hasMore) {
         fetchTasks(page + 1, searchTerm, true);
       }
     },
-    { threshold: 1.0 }
+    { threshold: 0.5 } // Reduced threshold to trigger earlier
   );
   
   // Observe the loading indicator or last element
   const sentinel = document.getElementById('scroll-sentinel');
-  if (sentinel) {
+  if (sentinel && hasMore) {
     observer.observe(sentinel);
   }
   
@@ -613,7 +617,6 @@ useEffect(() => {
     }
   };
 }, [page, hasMore, loading, isLoadingMore, searchTerm]);
-
 
 const SearchBar = ({ value, onChange, onSearch, loading }) => (
   <div className="relative mb-4">
@@ -1412,11 +1415,16 @@ const handleRefresh = () => {
                 ))}
               </tbody>
             </table>
-             {hasMore && (
-          <div id="scroll-sentinel" className="py-4 flex justify-center">
-            <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
-          </div>
-        )}
+           {hasMore && !loading && (
+  <div id="scroll-sentinel" className="py-4 flex justify-center">
+    <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+  </div>
+)}
+{!hasMore && allTasks.length > 0 && (
+  <div className="py-4 text-center text-gray-500 text-sm">
+    No more tasks to load
+  </div>
+)}
           </div>
 
           {/* Mobile Card View */}
@@ -1553,28 +1561,28 @@ const handleRefresh = () => {
         </div>
 
         {/* Empty State */}
-        {filteredTasks.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-500 px-4">
-              {isAdminUser
-                ? 'No tasks found matching your criteria.'
-                : isCompanyUser
-                  ? `No tasks found for company: ${companyData.companyName}`
-                  : 'No tasks assigned to you match the criteria.'
-              }
-            </p>
-          <Button
-  onClick={handleRefresh} // Changed from fetchTasks to handleRefresh
-  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
->
-  Refresh Data
-</Button>
-          </div>
-        )}
+      {filteredTasks.length === 0 && !loading && !isLoadingMore && (
+  <div className="text-center py-12">
+    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <Clock className="w-8 h-8 text-gray-400" />
+    </div>
+    <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+    <p className="text-gray-500 px-4">
+      {isAdminUser
+        ? 'No tasks found matching your criteria.'
+        : isCompanyUser
+          ? `No tasks found for company: ${companyData.companyName}`
+          : 'No tasks assigned to you match the criteria.'
+      }
+    </p>
+    <Button
+      onClick={handleRefresh}
+      className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+    >
+      Refresh Data
+    </Button>
+  </div>
+)}
       </div>
 
       {/* Assignment Popup with Clean & Classy UI */}
